@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.RectF;
 import android.location.Location;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
@@ -19,16 +20,26 @@ public final class CampusMapView extends View {
     }
 
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final RectF labelBounds = new RectF();
     private List<CampusGraphNode> nodes = new ArrayList<>();
     private Location gpsLocation;
     private OnNodeTapListener listener;
 
     public CampusMapView(Context context) {
         super(context);
+        init();
     }
 
     public CampusMapView(Context context, AttributeSet attrs) {
         super(context, attrs);
+        init();
+    }
+
+    private void init() {
+        textPaint.setColor(Color.rgb(30, 38, 48));
+        textPaint.setTextSize(sp(12));
+        textPaint.setFakeBoldText(true);
     }
 
     public void setNodes(List<CampusGraphNode> nodes) {
@@ -76,7 +87,7 @@ public final class CampusMapView extends View {
                 nearest = node;
             }
         }
-        if (nearest != null && nearestDistance <= 48.0) {
+        if (nearest != null && nearestDistance <= dp(30)) {
             listener.onNodeTapped(nearest);
         }
         return true;
@@ -112,9 +123,11 @@ public final class CampusMapView extends View {
             } else {
                 paint.setColor(Color.rgb(57, 82, 120));
             }
-            canvas.drawCircle((float) point.getX(), (float) point.getY(), 11f, paint);
+            float radius = nodeRadius(node);
+            canvas.drawCircle((float) point.getX(), (float) point.getY(), radius, paint);
             paint.setColor(Color.WHITE);
-            canvas.drawCircle((float) point.getX(), (float) point.getY(), 4f, paint);
+            canvas.drawCircle((float) point.getX(), (float) point.getY(), Math.max(dp(4), radius * 0.36f), paint);
+            drawLabel(canvas, node.getName(), (float) point.getX(), (float) point.getY(), radius, node.getNodeType());
         }
     }
 
@@ -127,7 +140,11 @@ public final class CampusMapView extends View {
         if (point == null) return;
         paint.setStyle(Paint.Style.FILL);
         paint.setColor(Color.rgb(34, 160, 78));
-        canvas.drawCircle((float) point.getX(), (float) point.getY(), 12f, paint);
+        float radius = dp(10);
+        canvas.drawCircle((float) point.getX(), (float) point.getY(), radius, paint);
+        paint.setColor(Color.WHITE);
+        canvas.drawCircle((float) point.getX(), (float) point.getY(), dp(4), paint);
+        drawLabel(canvas, "現在地", (float) point.getX(), (float) point.getY(), radius, null);
     }
 
     private MapPoint pointFor(CampusGraphNode node) {
@@ -135,5 +152,59 @@ public final class CampusMapView extends View {
             return null;
         }
         return MapCoordinateProjector.project(node.getLatitude(), node.getLongitude(), getWidth(), getHeight());
+    }
+
+    private float nodeRadius(CampusGraphNode node) {
+        if (node.getNodeType() == NodeType.BUS_STOP) {
+            return dp(15);
+        }
+        if (node.getNodeType() == NodeType.USER_ADDED) {
+            return dp(13);
+        }
+        return dp(12);
+    }
+
+    private void drawLabel(Canvas canvas, String text, float x, float y, float radius, NodeType nodeType) {
+        if (text == null || text.trim().isEmpty()) return;
+
+        float paddingX = dp(7);
+        float paddingY = dp(4);
+        float textWidth = textPaint.measureText(text);
+        Paint.FontMetrics metrics = textPaint.getFontMetrics();
+        float labelWidth = textWidth + paddingX * 2;
+        float labelHeight = metrics.descent - metrics.ascent + paddingY * 2;
+        float left = x + radius + dp(5);
+        float top = y - radius - labelHeight + dp(2);
+
+        if (left + labelWidth > getWidth() - dp(4)) {
+            left = x - radius - dp(5) - labelWidth;
+        }
+        if (left < dp(4)) {
+            left = dp(4);
+        }
+        if (top < dp(4)) {
+            top = y + radius + dp(5);
+        }
+        if (top + labelHeight > getHeight() - dp(4)) {
+            top = getHeight() - dp(4) - labelHeight;
+        }
+
+        labelBounds.set(left, top, left + labelWidth, top + labelHeight);
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(nodeType == NodeType.BUS_STOP ? Color.argb(232, 255, 241, 238) : Color.argb(232, 255, 255, 255));
+        canvas.drawRoundRect(labelBounds, dp(6), dp(6), paint);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(dp(1));
+        paint.setColor(nodeType == NodeType.BUS_STOP ? Color.rgb(221, 124, 113) : Color.rgb(185, 194, 205));
+        canvas.drawRoundRect(labelBounds, dp(6), dp(6), paint);
+        canvas.drawText(text, left + paddingX, top + paddingY - metrics.ascent, textPaint);
+    }
+
+    private float dp(float value) {
+        return value * getResources().getDisplayMetrics().density;
+    }
+
+    private float sp(float value) {
+        return value * getResources().getDisplayMetrics().scaledDensity;
     }
 }
