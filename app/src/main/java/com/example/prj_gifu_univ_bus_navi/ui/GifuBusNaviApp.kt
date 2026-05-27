@@ -151,7 +151,6 @@ private fun HomeScreen(viewModel: MainViewModel) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text("岐大バスナビ", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         CampusMapView(
             nodes = viewModel.mapSelectableNodes,
             gpsLocation = gpsLocation,
