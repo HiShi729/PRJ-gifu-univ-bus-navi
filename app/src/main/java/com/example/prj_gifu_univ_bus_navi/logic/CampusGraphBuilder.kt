@@ -30,8 +30,8 @@ object CampusGraphBuilder {
                 name = input.name,
                 nodeType = NodeType.USER_ADDED,
                 isSelectableAsStart = input.isSelectableAsStart,
-                latitude = null,
-                longitude = null,
+                latitude = input.latitude,
+                longitude = input.longitude,
             )
         }
         val userEdges = userNodeInputs.mapIndexed { index, input ->

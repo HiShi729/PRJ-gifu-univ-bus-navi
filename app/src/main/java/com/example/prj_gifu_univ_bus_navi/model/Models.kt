@@ -29,6 +29,12 @@ enum class EdgeSourceType {
     USER_OVERRIDE,
 }
 
+enum class UserNodeCoordinateSource {
+    NONE,
+    GPS,
+    MANUAL,
+}
+
 enum class BusStopId {
     GIFU_UNIV_HOSPITAL,
     YANAGIDO,
@@ -86,6 +92,9 @@ data class UserGraphNodeInput(
     val connectedNodeId: String,
     val minutesToConnectedNode: Int,
     val isSelectableAsStart: Boolean,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val coordinateSource: UserNodeCoordinateSource = UserNodeCoordinateSource.NONE,
 )
 
 data class UserEdgeOverride(

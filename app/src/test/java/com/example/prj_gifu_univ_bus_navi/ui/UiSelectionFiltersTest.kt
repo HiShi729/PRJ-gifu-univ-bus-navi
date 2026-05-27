@@ -5,36 +5,86 @@ import com.example.prj_gifu_univ_bus_navi.model.BusStopId
 import com.example.prj_gifu_univ_bus_navi.model.CampusGraphNode
 import com.example.prj_gifu_univ_bus_navi.model.DestinationBusStop
 import com.example.prj_gifu_univ_bus_navi.model.NodeType
+import com.example.prj_gifu_univ_bus_navi.model.UserGraphNodeInput
+import com.example.prj_gifu_univ_bus_navi.model.UserNodeCoordinateSource
+import com.example.prj_gifu_univ_bus_navi.logic.CampusGraphBuilder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalTime
 
 class UiSelectionFiltersTest {
     @Test
-    fun selectableMapNodesIncludeOnlyStartSelectableNodesWithCoordinates() {
+    fun selectableMapNodesIncludeSelectableStandardNodesAndBusStopsWithCoordinates() {
         val nodes = listOf(
-            node("selectable_with_coords", selectable = true, latitude = 35.0, longitude = 136.0),
-            node("not_selectable_with_coords", selectable = false, latitude = 35.1, longitude = 136.1),
-            node("selectable_without_coords", selectable = true, latitude = null, longitude = null),
+            node("selectable_standard_with_coords", NodeType.STANDARD, selectable = true, latitude = 35.0, longitude = 136.0),
+            node("not_selectable_standard_with_coords", NodeType.STANDARD, selectable = false, latitude = 35.1, longitude = 136.1),
+            node("selectable_without_coords", NodeType.STANDARD, selectable = true, latitude = null, longitude = null),
+            node("bus_stop_with_coords", NodeType.BUS_STOP, selectable = false, latitude = 35.2, longitude = 136.2),
         )
 
         val result = selectableMapNodes(nodes)
 
-        assertEquals(listOf("selectable_with_coords"), result.map { it.id })
+        assertEquals(listOf("selectable_standard_with_coords", "bus_stop_with_coords"), result.map { it.id })
     }
 
     @Test
-    fun viewModelMapSelectionUpdatesCurrentNodeId() {
+    fun userAddedNodeWithoutCoordinatesIsNotMapSelectable() {
+        val (nodes, _) = CampusGraphBuilder.buildGraph(
+            standardNodes = emptyList(),
+            standardEdges = emptyList(),
+            userNodeInputs = listOf(
+                UserGraphNodeInput(
+                    name = "研究室",
+                    connectedNodeId = "base",
+                    minutesToConnectedNode = 3,
+                    isSelectableAsStart = true,
+                ),
+            ),
+            userEdgeOverrides = emptyList(),
+        )
+
+        assertTrue(selectableMapNodes(nodes).isEmpty())
+    }
+
+    @Test
+    fun userAddedNodeWithManualCoordinatesIsMapSelectableAndKeepsCoordinates() {
+        val (nodes, _) = CampusGraphBuilder.buildGraph(
+            standardNodes = emptyList(),
+            standardEdges = emptyList(),
+            userNodeInputs = listOf(
+                UserGraphNodeInput(
+                    name = "研究室",
+                    connectedNodeId = "base",
+                    minutesToConnectedNode = 3,
+                    isSelectableAsStart = true,
+                    latitude = 35.45,
+                    longitude = 136.73,
+                    coordinateSource = UserNodeCoordinateSource.MANUAL,
+                ),
+            ),
+            userEdgeOverrides = emptyList(),
+        )
+
+        val result = selectableMapNodes(nodes)
+
+        assertEquals(1, result.size)
+        assertEquals(35.45, result.single().latitude)
+        assertEquals(136.73, result.single().longitude)
+    }
+
+    @Test
+    fun viewModelMapPinTapUpdatesCurrentNodeIdRunsRecommendationAndShowsResult() {
         val viewModel = MainViewModel()
         val target = viewModel.mapSelectableNodes.first { it.id != viewModel.selectedCurrentNodeId }
 
-        viewModel.selectMapNode(target.id)
-        viewModel.confirmMapNodeSelection()
+        viewModel.selectMapNodeAndRecommend(target.id)
 
         assertEquals(target.id, viewModel.selectedCurrentNodeId)
-        assertEquals(AppScreen.HOME, viewModel.currentScreen)
+        assertEquals(AppScreen.RESULT, viewModel.currentScreen)
+        assertNotNull(viewModel.recommendationResult)
     }
 
     @Test
@@ -61,13 +111,14 @@ class UiSelectionFiltersTest {
 
     private fun node(
         id: String,
+        nodeType: NodeType,
         selectable: Boolean,
         latitude: Double?,
         longitude: Double?,
     ) = CampusGraphNode(
         id = id,
         name = id,
-        nodeType = NodeType.STANDARD,
+        nodeType = nodeType,
         isSelectableAsStart = selectable,
         latitude = latitude,
         longitude = longitude,
