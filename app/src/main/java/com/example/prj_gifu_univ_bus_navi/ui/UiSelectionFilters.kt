@@ -2,9 +2,14 @@ package com.example.prj_gifu_univ_bus_navi.ui
 
 import com.example.prj_gifu_univ_bus_navi.model.BusStopCandidate
 import com.example.prj_gifu_univ_bus_navi.model.CampusGraphNode
+import com.example.prj_gifu_univ_bus_navi.model.NodeType
 
 fun selectableMapNodes(nodes: List<CampusGraphNode>): List<CampusGraphNode> =
-    nodes.filter { it.isSelectableAsStart && it.latitude != null && it.longitude != null }
+    nodes.filter { node ->
+        node.latitude != null &&
+            node.longitude != null &&
+            (node.nodeType == NodeType.BUS_STOP || (node.isSelectableAsStart && node.nodeType != NodeType.TRANSIT))
+    }
 
 fun displayCandidatesExcludingRecommended(
     allCandidates: List<BusStopCandidate>,

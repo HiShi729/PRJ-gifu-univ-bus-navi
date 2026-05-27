@@ -147,6 +147,12 @@ class MainViewModel : ViewModel() {
         currentScreen = AppScreen.HOME
     }
 
+    fun selectMapNodeAndRecommend(nodeId: String) {
+        selectedMapNodeId = nodeId
+        selectedCurrentNodeId = nodeId
+        findBestBus()
+    }
+
     fun navigate(screen: AppScreen) {
         currentScreen = screen
     }
