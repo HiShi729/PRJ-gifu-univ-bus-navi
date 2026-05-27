@@ -241,6 +241,17 @@ class MainViewModel : ViewModel() {
         currentScreen = screen
     }
 
+    fun navigateBack() {
+        currentScreen = when (currentScreen) {
+            AppScreen.HOME -> AppScreen.HOME
+            AppScreen.RESULT -> AppScreen.HOME
+            AppScreen.SETTINGS -> AppScreen.HOME
+            AppScreen.ADD_NODE -> AppScreen.SETTINGS
+            AppScreen.EDIT_TRAVEL_TIME -> AppScreen.SETTINGS
+            AppScreen.TRAVEL_TIME_PROFILE -> AppScreen.SETTINGS
+        }
+    }
+
     fun goHome() {
         currentScreen = AppScreen.HOME
     }

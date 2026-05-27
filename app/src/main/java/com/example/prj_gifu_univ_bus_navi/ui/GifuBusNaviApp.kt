@@ -5,19 +5,20 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -36,7 +37,6 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -45,6 +45,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -71,10 +72,12 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
 private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
-private val dateFormatter = DateTimeFormatter.ofPattern("yyyy/MM/dd")
 
 @Composable
 fun GifuBusNaviApp(viewModel: MainViewModel) {
+    BackHandler(enabled = viewModel.currentScreen != AppScreen.HOME) {
+        viewModel.navigateBack()
+    }
     MaterialTheme(
         colorScheme = lightColorScheme(),
     ) {
@@ -82,7 +85,7 @@ fun GifuBusNaviApp(viewModel: MainViewModel) {
             topBar = {
                 TopBar(
                     showBack = viewModel.currentScreen != AppScreen.HOME,
-                    onBack = viewModel::goHome,
+                    onBack = viewModel::navigateBack,
                 )
             },
         ) { innerPadding ->
@@ -119,6 +122,28 @@ private fun TopBar(showBack: Boolean, onBack: () -> Unit) {
 
 @Composable
 private fun HomeScreen(viewModel: MainViewModel) {
+    val context = LocalContext.current
+    var gpsLocation by remember { mutableStateOf<Location?>(null) }
+    val homeLocationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { grants ->
+        if (grants[Manifest.permission.ACCESS_FINE_LOCATION] == true || grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
+            gpsLocation = context.lastKnownLocation()
+        }
+    }
+    LaunchedEffect(Unit) {
+        if (context.hasLocationPermission()) {
+            gpsLocation = context.lastKnownLocation()
+        } else {
+            homeLocationPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                ),
+            )
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -129,10 +154,11 @@ private fun HomeScreen(viewModel: MainViewModel) {
         Text("岐大バスナビ", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         CampusMapView(
             nodes = viewModel.mapSelectableNodes,
+            gpsLocation = gpsLocation,
             onNodeSelected = viewModel::selectMapNodeAndRecommend,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(300.dp),
+                .aspectRatio(CampusMapDefaults.bounds.aspectRatio()),
         )
         CampusNodeDropdown(
             label = "現在地",
@@ -144,9 +170,6 @@ private fun HomeScreen(viewModel: MainViewModel) {
             Switch(checked = viewModel.rainModeEnabled, onCheckedChange = viewModel::updateRainModeEnabled)
             Text("雨の日モード")
         }
-        Text(viewModel.rainForecastStatus)
-        Text("現在日付: ${viewModel.currentDate.format(dateFormatter)}")
-        Text("現在時刻: ${viewModel.currentTime.format(timeFormatter)}")
         Button(
             onClick = viewModel::findBestBus,
             modifier = Modifier.fillMaxWidth(),
@@ -192,10 +215,6 @@ private fun SettingsScreen(viewModel: MainViewModel) {
             modifier = Modifier.fillMaxWidth(),
         ) { Text("ユーザー追加ノード") }
         OutlinedButton(
-            onClick = { viewModel.navigate(AppScreen.EDIT_TRAVEL_TIME) },
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text("移動時間編集") }
-        OutlinedButton(
             onClick = { viewModel.navigate(AppScreen.TRAVEL_TIME_PROFILE) },
             modifier = Modifier.fillMaxWidth(),
         ) { Text("移動時間補正") }
@@ -208,6 +227,7 @@ private fun SettingsScreen(viewModel: MainViewModel) {
 @Composable
 private fun CampusMapView(
     nodes: List<CampusGraphNode>,
+    gpsLocation: Location?,
     onNodeSelected: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -217,6 +237,26 @@ private fun CampusMapView(
         CampusMapBackground(Modifier.fillMaxSize())
         val mapWidth = maxWidth
         val mapHeight = maxHeight
+        if (isGpsLocationVisibleOnCampusMap(gpsLocation?.latitude, gpsLocation?.longitude)) {
+            val gpsPoint = MapCoordinateProjector.project(
+                latitude = gpsLocation!!.latitude,
+                longitude = gpsLocation.longitude,
+                mapWidth = mapWidth.value,
+                mapHeight = mapHeight.value,
+            )
+            if (gpsPoint != null) {
+                Box(
+                    modifier = Modifier
+                        .offset(
+                            x = gpsPoint.x.dp - 7.dp,
+                            y = gpsPoint.y.dp - 7.dp,
+                        )
+                        .size(14.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF00A152)),
+                )
+            }
+        }
         nodes.forEach { node ->
             val point = MapCoordinateProjector.project(
                 latitude = node.latitude ?: return@forEach,
@@ -344,7 +384,11 @@ private fun AddNodeScreen(viewModel: MainViewModel) {
         } else {
             latitudeText = location.latitude.toString()
             longitudeText = location.longitude.toString()
-            coordinateMessage = "現在地を取得しました"
+            coordinateMessage = if (MapCoordinateProjector.isInBounds(location.latitude, location.longitude)) {
+                "現在地を取得しました"
+            } else {
+                "現在地が大学敷地外です"
+            }
         }
     }
     val locationPermissionLauncher = rememberLauncherForActivityResult(
@@ -356,10 +400,28 @@ private fun AddNodeScreen(viewModel: MainViewModel) {
             coordinateMessage = "位置情報権限が許可されていません。手入力してください。"
         }
     }
+    fun requestCurrentLocation() {
+        coordinateMessage = "取得中"
+        if (context.hasLocationPermission()) {
+            applyLastKnownLocation()
+        } else {
+            locationPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                ),
+            )
+        }
+    }
     val minutes = minutesText.toIntOrNull()
     val latitude = latitudeText.toDoubleOrNull()
     val longitude = longitudeText.toDoubleOrNull()
-    val hasValidCoordinates = coordinateSource == UserNodeCoordinateSource.NONE || (latitude != null && longitude != null)
+    val coordinateInBounds = latitude != null && longitude != null && MapCoordinateProjector.isInBounds(latitude, longitude)
+    val hasValidCoordinates = when (coordinateSource) {
+        UserNodeCoordinateSource.NONE -> true
+        UserNodeCoordinateSource.GPS -> coordinateInBounds
+        UserNodeCoordinateSource.MANUAL -> latitude != null && longitude != null
+    }
 
     Column(
         modifier = Modifier
@@ -392,48 +454,27 @@ private fun AddNodeScreen(viewModel: MainViewModel) {
             Checkbox(checked = selectable, onCheckedChange = { selectable = it })
             Text("スタート地点として選択可能にする")
         }
-        Text("座標設定", fontWeight = FontWeight.Bold)
-        UserNodeCoordinateSource.entries.forEach { source ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { coordinateSource = source },
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                RadioButton(selected = coordinateSource == source, onClick = { coordinateSource = source })
-                Text(
-                    when (source) {
-                        UserNodeCoordinateSource.NONE -> "座標なし"
-                        UserNodeCoordinateSource.GPS -> "GPSから取得"
-                        UserNodeCoordinateSource.MANUAL -> "手入力"
-                    },
-                )
-            }
-        }
+        CoordinateSourceDropdown(
+            selected = coordinateSource,
+            onSelected = { source ->
+                coordinateSource = source
+                coordinateMessage = ""
+                if (source == UserNodeCoordinateSource.NONE) {
+                    latitudeText = ""
+                    longitudeText = ""
+                }
+                if (source == UserNodeCoordinateSource.GPS) {
+                    requestCurrentLocation()
+                }
+            },
+        )
         if (coordinateSource == UserNodeCoordinateSource.GPS) {
-            OutlinedButton(
-                onClick = {
-                    if (context.hasLocationPermission()) {
-                        applyLastKnownLocation()
-                    } else {
-                        locationPermissionLauncher.launch(
-                            arrayOf(
-                                Manifest.permission.ACCESS_FINE_LOCATION,
-                                Manifest.permission.ACCESS_COARSE_LOCATION,
-                            ),
-                        )
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("現在地取得")
-            }
             Text("取得座標: ${latitudeText.ifBlank { "未取得" }}, ${longitudeText.ifBlank { "未取得" }}")
             if (coordinateMessage.isNotBlank()) {
                 Text(coordinateMessage)
             }
         }
-        if (coordinateSource != UserNodeCoordinateSource.NONE) {
+        if (coordinateSource == UserNodeCoordinateSource.MANUAL) {
             OutlinedTextField(
                 value = latitudeText,
                 onValueChange = { latitudeText = it.filterCoordinateChars() },
@@ -448,6 +489,9 @@ private fun AddNodeScreen(viewModel: MainViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
+        }
+        if (coordinateSource == UserNodeCoordinateSource.GPS && latitude != null && longitude != null && !coordinateInBounds) {
+            Text("大学敷地外のため保存できません", color = MaterialTheme.colorScheme.error)
         }
         Button(
             onClick = {
@@ -483,7 +527,7 @@ private fun EditTravelTimeScreen(viewModel: MainViewModel) {
         viewModel.editableEdges.forEach { edge ->
             EdgeEditor(edge, viewModel.graphNodes, viewModel.edgeOverrideMinutes(edge.id), viewModel::setEdgeOverride)
         }
-        Button(onClick = viewModel::goHome, modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = { viewModel.navigate(AppScreen.SETTINGS) }, modifier = Modifier.fillMaxWidth()) {
             Text("保存して戻る")
         }
     }
@@ -652,6 +696,44 @@ private fun CampusNodeDropdown(
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CoordinateSourceDropdown(
+    selected: UserNodeCoordinateSource,
+    onSelected: (UserNodeCoordinateSource) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+        OutlinedTextField(
+            value = selected.displayName(),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("座標設定") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+            modifier = Modifier
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth(),
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            UserNodeCoordinateSource.entries.forEach { source ->
+                DropdownMenuItem(
+                    text = { Text(source.displayName()) },
+                    onClick = {
+                        onSelected(source)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
+}
+
+private fun UserNodeCoordinateSource.displayName(): String = when (this) {
+    UserNodeCoordinateSource.NONE -> "座標なし"
+    UserNodeCoordinateSource.GPS -> "GPS"
+    UserNodeCoordinateSource.MANUAL -> "手入力"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
