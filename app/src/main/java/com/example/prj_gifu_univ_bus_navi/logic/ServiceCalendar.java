@@ -14,7 +14,7 @@ public final class ServiceCalendar {
 
     public static ServiceDateContext createContext(LocalDate date, List<LocalDate> schoolHolidays) {
         BaseDayType baseDayType;
-        if (LocalHolidayData.INSTANCE.getHolidays().contains(date)
+        if (LocalHolidayData.isHoliday(date)
             || date.getDayOfWeek() == DayOfWeek.SATURDAY
             || date.getDayOfWeek() == DayOfWeek.SUNDAY) {
             baseDayType = BaseDayType.WEEKEND_HOLIDAY;
@@ -24,7 +24,7 @@ public final class ServiceCalendar {
         return new ServiceDateContext(
             date,
             baseDayType,
-            LocalAcademicCalendarData.INSTANCE.isSchoolHoliday(date),
+            LocalAcademicCalendarData.isSchoolHoliday(date),
             date.getMonthValue()
         );
     }

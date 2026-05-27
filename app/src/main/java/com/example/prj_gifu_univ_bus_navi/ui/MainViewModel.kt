@@ -46,7 +46,7 @@ class MainViewModel : ViewModel() {
 
     var currentScreen by mutableStateOf(AppScreen.HOME)
         private set
-    var selectedCurrentNodeId by mutableStateOf(LocalCampusGraphData.nodes.first { it.isSelectableAsStart }.id)
+    var selectedCurrentNodeId by mutableStateOf(LocalCampusGraphData.getNodes().first { it.isSelectableAsStart }.id)
         private set
     var selectedDestinationStopName by mutableStateOf("JR岐阜")
         private set
@@ -83,8 +83,8 @@ class MainViewModel : ViewModel() {
 
     val graphNodes: List<CampusGraphNode>
         get() = CampusGraphBuilder.buildGraph(
-            LocalCampusGraphData.nodes,
-            LocalCampusGraphData.edges,
+            LocalCampusGraphData.getNodes(),
+            LocalCampusGraphData.getEdges(),
             userNodeInputs,
             userEdgeOverrides,
             userTravelTimeProfile,
@@ -93,8 +93,8 @@ class MainViewModel : ViewModel() {
 
     val graphEdges: List<CampusGraphEdge>
         get() = CampusGraphBuilder.buildGraph(
-            LocalCampusGraphData.nodes,
-            LocalCampusGraphData.edges,
+            LocalCampusGraphData.getNodes(),
+            LocalCampusGraphData.getEdges(),
             userNodeInputs,
             userEdgeOverrides,
             userTravelTimeProfile,
@@ -108,7 +108,7 @@ class MainViewModel : ViewModel() {
         get() = selectableMapNodes(graphNodes)
 
     val editableEdges: List<CampusGraphEdge>
-        get() = LocalCampusGraphData.edges.filter { it.isSelectableForUserEdit }
+        get() = LocalCampusGraphData.getEdges().filter { it.isSelectableForUserEdit }
 
     val favoriteStartNodeName: String?
         get() = favoriteStartNodeId?.let { id -> graphNodes.firstOrNull { it.id == id }?.name }
@@ -169,10 +169,10 @@ class MainViewModel : ViewModel() {
             selectedSafetyMargin.minutes,
             selectedDestinationStopName,
             busTrips,
-            LocalBusStopData.busStops,
+            LocalBusStopData.getBusStops(),
             graphNodes,
             graphEdges,
-            LocalSchoolHolidayData.schoolHolidays,
+            LocalSchoolHolidayData.getSchoolHolidays(),
         )
         currentScreen = AppScreen.RESULT
     }

@@ -14,8 +14,8 @@ class ShortestPathCalculatorTest {
     @Test
     fun returnsTotalMinutesAcrossMultipleEdges() {
         val result = ShortestPathCalculator.findShortestPath(
-            LocalCampusGraphData.nodes,
-            LocalCampusGraphData.edges,
+            LocalCampusGraphData.getNodes(),
+            LocalCampusGraphData.getEdges(),
             "engineering_entrance",
             "bus_stop_yanagido",
         )
@@ -28,8 +28,8 @@ class ShortestPathCalculatorTest {
         val isolated = CampusGraphNode("isolated", "孤立地点", NodeType.STANDARD, true, null, null)
 
         val result = ShortestPathCalculator.findShortestPath(
-            LocalCampusGraphData.nodes + isolated,
-            LocalCampusGraphData.edges,
+            LocalCampusGraphData.getNodes() + isolated,
+            LocalCampusGraphData.getEdges(),
             "engineering_entrance",
             "isolated",
         )
@@ -40,8 +40,8 @@ class ShortestPathCalculatorTest {
     @Test
     fun userOverrideMinutesTakePrecedence() {
         val (nodes, edges) = CampusGraphBuilder.buildGraph(
-            LocalCampusGraphData.nodes,
-            LocalCampusGraphData.edges,
+            LocalCampusGraphData.getNodes(),
+            LocalCampusGraphData.getEdges(),
             emptyList(),
             listOf(UserEdgeOverride("edge_engineering_common", 1)),
         )

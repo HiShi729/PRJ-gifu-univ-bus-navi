@@ -17,7 +17,7 @@ class ServiceCalendarTest {
 
     @Test
     fun localHolidayUsesWeekendHolidaySchedule() {
-        val holiday = LocalHolidayData.holidays.first()
+        val holiday = LocalHolidayData.getHolidays().first()
 
         assertEquals(BaseDayType.WEEKEND_HOLIDAY, ServiceCalendar.createContext(holiday, emptyList()).baseDayType)
     }
