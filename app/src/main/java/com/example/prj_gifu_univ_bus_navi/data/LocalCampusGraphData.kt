@@ -7,15 +7,15 @@ import com.example.prj_gifu_univ_bus_navi.model.NodeType
 
 object LocalCampusGraphData {
     val nodes = listOf(
-        CampusGraphNode("engineering_entrance", "工学部棟入口", NodeType.STANDARD, true, null, null),
-        CampusGraphNode("common_education", "全学共通教育棟", NodeType.STANDARD, true, null, null),
-        CampusGraphNode("library", "図書館", NodeType.STANDARD, true, null, null),
-        CampusGraphNode("university_hall", "大学会館", NodeType.STANDARD, true, null, null),
-        CampusGraphNode("applied_biological", "応用生物科学部", NodeType.STANDARD, true, null, null),
-        CampusGraphNode("medicine", "医学部", NodeType.STANDARD, true, null, null),
-        CampusGraphNode("bus_stop_hospital", "岐阜大学病院", NodeType.BUS_STOP, false, null, null),
-        CampusGraphNode("bus_stop_yanagido", "柳戸橋", NodeType.BUS_STOP, false, null, null),
-        CampusGraphNode("bus_stop_university", "岐阜大学", NodeType.BUS_STOP, false, null, null),
+        CampusGraphNode("engineering_entrance", "工学部棟入口", NodeType.STANDARD, true, 35.4640, 136.7350),
+        CampusGraphNode("common_education", "全学共通教育棟", NodeType.STANDARD, true, 35.4632, 136.7362),
+        CampusGraphNode("library", "図書館", NodeType.STANDARD, true, 35.4637, 136.7370),
+        CampusGraphNode("university_hall", "大学会館", NodeType.STANDARD, true, 35.4629, 136.7366),
+        CampusGraphNode("applied_biological", "応用生物科学部", NodeType.STANDARD, true, 35.4618, 136.7354),
+        CampusGraphNode("medicine", "医学部", NodeType.STANDARD, true, 35.4670, 136.7332),
+        CampusGraphNode("bus_stop_hospital", "岐阜大学病院", NodeType.BUS_STOP, false, 35.467718847, 136.732773421),
+        CampusGraphNode("bus_stop_yanagido", "柳戸橋", NodeType.BUS_STOP, false, 35.4655, 136.7340),
+        CampusGraphNode("bus_stop_university", "岐阜大学", NodeType.BUS_STOP, false, 35.462879009, 136.735648927),
         CampusGraphNode("transit_center", "経路探索用中継点", NodeType.TRANSIT, false, null, null),
     )
 
