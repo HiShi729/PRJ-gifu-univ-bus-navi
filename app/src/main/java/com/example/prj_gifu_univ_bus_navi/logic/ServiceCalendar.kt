@@ -15,10 +15,10 @@ object ServiceCalendar {
             else -> BaseDayType.WEEKDAY
         }
         return ServiceDateContext(
-            date = date,
-            baseDayType = baseDayType,
-            isSchoolHoliday = LocalAcademicCalendarData.isSchoolHoliday(date),
-            month = date.monthValue,
+            date,
+            baseDayType,
+            LocalAcademicCalendarData.isSchoolHoliday(date),
+            date.monthValue,
         )
     }
 }

@@ -53,9 +53,9 @@ object BusRecommendationEngine {
         val recommended = candidates.minWithOrNull(compareBy<BusStopCandidate> { it.departureTime }.thenBy { it.travelMinutes })
 
         return RecommendationResult(
-            recommendedCandidate = recommended,
-            allCandidates = candidates.take(10),
-            message = if (recommended == null) NO_CANDIDATE_MESSAGE else null,
+            recommended,
+            candidates.take(10),
+            if (recommended == null) NO_CANDIDATE_MESSAGE else null,
         )
     }
 
@@ -75,20 +75,20 @@ object BusRecommendationEngine {
         val remainingMinutes = Duration.between(latestArrivalWithMargin, departureTime).toMinutes().toInt()
         if (remainingMinutes < 0 || !canCatch) return null
         return BusStopCandidate(
-            busStopId = busStop.id,
-            busStopName = busStop.name,
-            tripId = trip.id,
-            departureTime = departureTime,
-            travelMinutes = travelMinutes,
-            arrivalTimeAtBusStop = arrivalAtBusStop,
-            remainingMinutes = remainingMinutes,
-            canCatch = canCatch,
-            routeName = trip.routeName,
-            destinationBusStopName = selectedDestinationStopName,
-            actualArrivalBusStopName = resolvedArrival.first,
-            destinationArrivalTime = resolvedArrival.second,
-            mayBeArticulatedBus = trip.mayBeArticulatedBus,
-            reason = if (canCatch) {
+            busStop.id,
+            busStop.name,
+            trip.id,
+            departureTime,
+            travelMinutes,
+            arrivalAtBusStop,
+            remainingMinutes,
+            canCatch,
+            trip.routeName,
+            selectedDestinationStopName,
+            resolvedArrival.first,
+            resolvedArrival.second,
+            trip.mayBeArticulatedBus,
+            if (canCatch) {
                 "発車時刻までに到着でき、候補の中で発車時刻と移動時間を比較できます"
             } else {
                 "余裕時間を含めると発車時刻に間に合いません"

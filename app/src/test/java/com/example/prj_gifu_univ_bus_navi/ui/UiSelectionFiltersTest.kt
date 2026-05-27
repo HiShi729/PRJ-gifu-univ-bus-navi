@@ -71,8 +71,8 @@ class UiSelectionFiltersTest {
         val result = selectableMapNodes(nodes)
 
         assertEquals(1, result.size)
-        assertEquals(35.4645, result.single().latitude)
-        assertEquals(136.7355, result.single().longitude)
+        assertEquals(35.4645, result.single().latitude ?: 0.0, 0.0001)
+        assertEquals(136.7355, result.single().longitude ?: 0.0, 0.0001)
     }
 
     @Test
@@ -116,12 +116,12 @@ class UiSelectionFiltersTest {
         latitude: Double?,
         longitude: Double?,
     ) = CampusGraphNode(
-        id = id,
-        name = id,
-        nodeType = nodeType,
-        isSelectableAsStart = selectable,
-        latitude = latitude,
-        longitude = longitude,
+        id,
+        id,
+        nodeType,
+        selectable,
+        latitude,
+        longitude,
     )
 
     private fun candidate(
@@ -129,19 +129,19 @@ class UiSelectionFiltersTest {
         busStopId: BusStopId,
         departureTime: LocalTime,
     ) = BusStopCandidate(
-        busStopId = busStopId,
-        busStopName = busStopId.name,
-        tripId = tripId,
-        departureTime = departureTime,
-        travelMinutes = 5,
-        arrivalTimeAtBusStop = departureTime.minusMinutes(5),
-        remainingMinutes = 5,
-        canCatch = true,
-        routeName = "テスト",
-        destinationBusStopName = "JR岐阜",
-        actualArrivalBusStopName = "JR岐阜",
-        destinationArrivalTime = departureTime.plusMinutes(30),
-        mayBeArticulatedBus = false,
-        reason = "テスト",
+        busStopId,
+        busStopId.name,
+        tripId,
+        departureTime,
+        5,
+        departureTime.minusMinutes(5),
+        5,
+        true,
+        "テスト",
+        "JR岐阜",
+        "JR岐阜",
+        departureTime.plusMinutes(30),
+        false,
+        "テスト",
     )
 }

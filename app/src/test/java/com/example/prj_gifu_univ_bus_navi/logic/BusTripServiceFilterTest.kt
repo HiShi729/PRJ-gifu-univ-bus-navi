@@ -47,18 +47,19 @@ class BusTripServiceFilterTest {
     }
 
     private fun trip(rule: OperationRule, startMonth: Int? = null, endMonth: Int? = null) = BusTrip(
-        id = "test",
-        destination = "JR岐阜駅",
-        baseDayType = BaseDayType.WEEKDAY,
-        routeName = "テスト",
-        hospitalDepartureTime = LocalTime.of(18, 0),
-        yanagidoDepartureTime = LocalTime.of(18, 4),
-        universityDepartureTime = LocalTime.of(18, 7),
-        jrGifuArrivalTime = LocalTime.of(18, 35),
-        meitetsuGifuArrivalTime = null,
-        operationRule = rule,
-        operatingStartMonth = startMonth,
-        operatingEndMonth = endMonth,
-        mayBeArticulatedBus = false,
+        "test",
+        "JR岐阜駅",
+        BaseDayType.WEEKDAY,
+        "テスト",
+        LocalTime.of(18, 0),
+        LocalTime.of(18, 4),
+        LocalTime.of(18, 7),
+        LocalTime.of(18, 35),
+        null,
+        rule,
+        startMonth,
+        endMonth,
+        false,
+        emptyMap(),
     )
 }

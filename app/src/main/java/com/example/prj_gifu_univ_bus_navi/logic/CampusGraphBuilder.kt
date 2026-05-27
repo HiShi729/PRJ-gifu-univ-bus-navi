@@ -26,32 +26,36 @@ object CampusGraphBuilder {
                 userTravelTimeProfile = userTravelTimeProfile,
                 rainModeEnabled = rainModeEnabled,
             )
-            if (override == null) {
-                edge.copy(minutes = minutes)
-            } else {
-                edge.copy(minutes = minutes, sourceType = EdgeSourceType.USER_OVERRIDE)
-            }
+            CampusGraphEdge(
+                edge.id,
+                edge.fromNodeId,
+                edge.toNodeId,
+                minutes,
+                edge.isBidirectional,
+                if (override == null) edge.sourceType else EdgeSourceType.USER_OVERRIDE,
+                edge.isSelectableForUserEdit,
+            )
         }
 
         val userNodes = userNodeInputs.mapIndexed { index, input ->
             CampusGraphNode(
-                id = userNodeId(index, input.name),
-                name = input.name,
-                nodeType = NodeType.USER_ADDED,
-                isSelectableAsStart = input.isSelectableAsStart,
-                latitude = input.latitude,
-                longitude = input.longitude,
+                userNodeId(index, input.name),
+                input.name,
+                NodeType.USER_ADDED,
+                input.isSelectableAsStart,
+                input.latitude,
+                input.longitude,
             )
         }
         val userEdges = userNodeInputs.mapIndexed { index, input ->
             CampusGraphEdge(
-                id = "user_edge_${index}_${sanitizeId(input.name)}",
-                fromNodeId = userNodeId(index, input.name),
-                toNodeId = input.connectedNodeId,
-                minutes = input.minutesToConnectedNode,
-                isBidirectional = true,
-                sourceType = EdgeSourceType.USER_ADDED,
-                isSelectableForUserEdit = true,
+                "user_edge_${index}_${sanitizeId(input.name)}",
+                userNodeId(index, input.name),
+                input.connectedNodeId,
+                input.minutesToConnectedNode,
+                true,
+                EdgeSourceType.USER_ADDED,
+                true,
             )
         }
 

@@ -19,7 +19,7 @@ class EdgeTravelTimeResolverTest {
     @Test
     fun profileScalesStandardEdgeAndCeils() {
         assertEquals(3, EdgeTravelTimeResolver.resolveMinutes(edge, emptyList(), profile, rainModeEnabled = false))
-        assertEquals(4, EdgeTravelTimeResolver.resolveMinutes(edge.copy(minutes = 5), emptyList(), profile.copy(timeScaleFactor = 0.61), rainModeEnabled = false))
+        assertEquals(4, EdgeTravelTimeResolver.resolveMinutes(edge, emptyList(), UserTravelTimeProfile("edge", 5, 3, 0.61), rainModeEnabled = false))
     }
 
     @Test

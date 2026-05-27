@@ -31,20 +31,20 @@ object BusScheduleCsvParser {
             val values = header.mapIndexed { index, name -> name to row.getOrElse(index) { "" } }.toMap()
             val stopTimes = stopColumns.associateWith { stopName -> parseTimeOrNull(values.value(stopName)) }
             BusTrip(
-                id = values.value("id").ifBlank { values.value("busNo.") },
-                destination = buildDestination(values),
-                baseDayType = BaseDayType.valueOf(values.value("baseDayType")),
-                routeName = values.value("routeName").ifBlank { values.value("路線名") },
-                hospitalDepartureTime = parseTimeOrNull(values.value("岐阜大学病院")),
-                yanagidoDepartureTime = parseTimeOrNull(values.value("柳戸橋")),
-                universityDepartureTime = parseTimeOrNull(values.value("岐阜大学")),
-                jrGifuArrivalTime = parseTimeOrNull(values.value("JR岐阜")),
-                meitetsuGifuArrivalTime = parseTimeOrNull(values.value("名鉄岐阜")),
-                operationRule = OperationRule.valueOf(values.value("operationRule")),
-                operatingStartMonth = values.value("operatingStartMonth").toIntOrNull(),
-                operatingEndMonth = values.value("operatingEndMonth").toIntOrNull(),
-                mayBeArticulatedBus = values.value("mayBeArticulatedBus").equals("true", ignoreCase = true),
-                stopTimes = stopTimes,
+                values.value("id").ifBlank { values.value("busNo.") },
+                buildDestination(values),
+                BaseDayType.valueOf(values.value("baseDayType")),
+                values.value("routeName").ifBlank { values.value("路線名") },
+                parseTimeOrNull(values.value("岐阜大学病院")),
+                parseTimeOrNull(values.value("柳戸橋")),
+                parseTimeOrNull(values.value("岐阜大学")),
+                parseTimeOrNull(values.value("JR岐阜")),
+                parseTimeOrNull(values.value("名鉄岐阜")),
+                OperationRule.valueOf(values.value("operationRule")),
+                values.value("operatingStartMonth").toIntOrNull(),
+                values.value("operatingEndMonth").toIntOrNull(),
+                values.value("mayBeArticulatedBus").equals("true", ignoreCase = true),
+                stopTimes,
             )
         }
     }
