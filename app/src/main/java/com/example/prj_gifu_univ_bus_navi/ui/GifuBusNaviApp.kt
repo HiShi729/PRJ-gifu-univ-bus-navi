@@ -114,7 +114,7 @@ private fun TopBar(showBack: Boolean, onBack: () -> Unit) {
         title = { Text("岐大バスナビ") },
         navigationIcon = {
             if (showBack) {
-                TextButton(onClick = onBack) { Text("戻る") }
+                TextButton(onClick = onBack) { Text("＜") }
             }
         },
     )
