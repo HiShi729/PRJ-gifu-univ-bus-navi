@@ -13,22 +13,22 @@ class EdgeTravelTimeResolverTest {
 
     @Test
     fun overrideTakesPrecedenceOverProfile() {
-        assertEquals(2, EdgeTravelTimeResolver.resolveMinutes(edge, listOf(UserEdgeOverride("edge", 2)), profile, rainModeEnabled = false))
+        assertEquals(2, EdgeTravelTimeResolver.resolveMinutes(edge, listOf(UserEdgeOverride("edge", 2)), profile, false))
     }
 
     @Test
     fun profileScalesStandardEdgeAndCeils() {
-        assertEquals(3, EdgeTravelTimeResolver.resolveMinutes(edge, emptyList(), profile, rainModeEnabled = false))
-        assertEquals(4, EdgeTravelTimeResolver.resolveMinutes(edge, emptyList(), UserTravelTimeProfile("edge", 5, 3, 0.61), rainModeEnabled = false))
+        assertEquals(3, EdgeTravelTimeResolver.resolveMinutes(edge, emptyList(), profile, false))
+        assertEquals(4, EdgeTravelTimeResolver.resolveMinutes(edge, emptyList(), UserTravelTimeProfile("edge", 5, 3, 0.61), false))
     }
 
     @Test
     fun usesStandardMinutesWithoutProfile() {
-        assertEquals(5, EdgeTravelTimeResolver.resolveMinutes(edge, emptyList(), null, rainModeEnabled = false))
+        assertEquals(5, EdgeTravelTimeResolver.resolveMinutes(edge, emptyList(), null, false))
     }
 
     @Test
     fun rainModeScalesResolvedMinutes() {
-        assertEquals(4, EdgeTravelTimeResolver.resolveMinutes(edge, emptyList(), profile, rainModeEnabled = true))
+        assertEquals(4, EdgeTravelTimeResolver.resolveMinutes(edge, emptyList(), profile, true))
     }
 }

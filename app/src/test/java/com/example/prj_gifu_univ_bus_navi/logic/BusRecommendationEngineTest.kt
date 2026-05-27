@@ -71,16 +71,16 @@ class BusRecommendationEngineTest {
         destination: String,
         trips: List<BusTrip> = listOf(trip()),
     ) = BusRecommendationEngine.recommend(
-        currentNodeId = "start",
-        nowDate = LocalDate.of(2026, 5, 7),
-        nowTime = nowTime,
-        safetyMarginMinutes = safetyMargin,
-        selectedDestinationStopName = destination,
-        busTrips = trips,
-        busStops = busStops(),
-        graphNodes = nodes(),
-        graphEdges = edges(),
-        schoolHolidays = emptyList(),
+        "start",
+        LocalDate.of(2026, 5, 7),
+        nowTime,
+        safetyMargin,
+        destination,
+        trips,
+        busStops(),
+        nodes(),
+        edges(),
+        emptyList(),
     )
 
     private fun trip(

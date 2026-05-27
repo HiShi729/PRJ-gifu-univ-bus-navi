@@ -236,12 +236,12 @@ private fun CampusMapView(
         CampusMapBackground(Modifier.fillMaxSize())
         val mapWidth = maxWidth
         val mapHeight = maxHeight
-        if (isGpsLocationVisibleOnCampusMap(gpsLocation?.latitude, gpsLocation?.longitude)) {
+        if (MapCoordinateProjector.isGpsLocationVisibleOnCampusMap(gpsLocation?.latitude, gpsLocation?.longitude)) {
             val gpsPoint = MapCoordinateProjector.project(
-                latitude = gpsLocation!!.latitude,
-                longitude = gpsLocation.longitude,
-                mapWidth = mapWidth.value,
-                mapHeight = mapHeight.value,
+                gpsLocation!!.latitude,
+                gpsLocation.longitude,
+                mapWidth.value,
+                mapHeight.value,
             )
             if (gpsPoint != null) {
                 Box(
@@ -258,10 +258,10 @@ private fun CampusMapView(
         }
         nodes.forEach { node ->
             val point = MapCoordinateProjector.project(
-                latitude = node.latitude ?: return@forEach,
-                longitude = node.longitude ?: return@forEach,
-                mapWidth = mapWidth.value,
-                mapHeight = mapHeight.value,
+                node.latitude ?: return@forEach,
+                node.longitude ?: return@forEach,
+                mapWidth.value,
+                mapHeight.value,
             ) ?: return@forEach
             Column(
                 modifier = Modifier

@@ -163,16 +163,16 @@ class MainViewModel : ViewModel() {
     fun findBestBus() {
         refreshClock()
         recommendationResult = BusRecommendationEngine.recommend(
-            currentNodeId = selectedCurrentNodeId,
-            nowDate = currentDate,
-            nowTime = currentTime,
-            safetyMarginMinutes = selectedSafetyMargin.minutes,
-            selectedDestinationStopName = selectedDestinationStopName,
-            busTrips = busTrips,
-            busStops = LocalBusStopData.busStops,
-            graphNodes = graphNodes,
-            graphEdges = graphEdges,
-            schoolHolidays = LocalSchoolHolidayData.schoolHolidays,
+            selectedCurrentNodeId,
+            currentDate,
+            currentTime,
+            selectedSafetyMargin.minutes,
+            selectedDestinationStopName,
+            busTrips,
+            LocalBusStopData.busStops,
+            graphNodes,
+            graphEdges,
+            LocalSchoolHolidayData.schoolHolidays,
         )
         currentScreen = AppScreen.RESULT
     }

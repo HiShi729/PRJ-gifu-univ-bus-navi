@@ -14,10 +14,10 @@ class MapCoordinateProjectorTest {
     @Test
     fun topLeftBoundsProjectNearOrigin() {
         val point = MapCoordinateProjector.project(
-            latitude = CampusMapDefaults.bounds.topLatitude,
-            longitude = CampusMapDefaults.bounds.leftLongitude,
-            mapWidth = width,
-            mapHeight = height,
+            CampusMapDefaults.bounds.topLatitude,
+            CampusMapDefaults.bounds.leftLongitude,
+            width,
+            height,
         )
 
         assertNotNull(point)
@@ -28,10 +28,10 @@ class MapCoordinateProjectorTest {
     @Test
     fun bottomRightBoundsProjectNearMapSize() {
         val point = MapCoordinateProjector.project(
-            latitude = CampusMapDefaults.bounds.bottomLatitude,
-            longitude = CampusMapDefaults.bounds.rightLongitude,
-            mapWidth = width,
-            mapHeight = height,
+            CampusMapDefaults.bounds.bottomLatitude,
+            CampusMapDefaults.bounds.rightLongitude,
+            width,
+            height,
         )
 
         assertNotNull(point)
@@ -65,13 +65,13 @@ class MapCoordinateProjectorTest {
     @Test
     fun googleHeadquartersCoordinatesAreOutsideGpsDisplayBounds() {
         assertFalse(MapCoordinateProjector.isInBounds(37.421998333333335, -122.084))
-        assertFalse(isGpsLocationVisibleOnCampusMap(37.421998333333335, -122.084))
+        assertFalse(MapCoordinateProjector.isGpsLocationVisibleOnCampusMap(37.421998333333335, -122.084))
     }
 
     @Test
     fun outsideGpsCoordinatesAreNotVisible() {
-        assertFalse(isGpsLocationVisibleOnCampusMap(null, 136.736083))
-        assertFalse(isGpsLocationVisibleOnCampusMap(35.462718, null))
-        assertFalse(isGpsLocationVisibleOnCampusMap(35.470500, 136.736000))
+        assertFalse(MapCoordinateProjector.isGpsLocationVisibleOnCampusMap(null, 136.736083))
+        assertFalse(MapCoordinateProjector.isGpsLocationVisibleOnCampusMap(35.462718, null))
+        assertFalse(MapCoordinateProjector.isGpsLocationVisibleOnCampusMap(35.470500, 136.736000))
     }
 }

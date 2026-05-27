@@ -32,10 +32,10 @@ class UiSelectionFiltersTest {
 
     @Test
     fun userAddedNodeWithoutCoordinatesIsNotMapSelectable() {
-        val (nodes, _) = CampusGraphBuilder.buildGraph(
-            standardNodes = emptyList(),
-            standardEdges = emptyList(),
-            userNodeInputs = listOf(
+        val graph = CampusGraphBuilder.buildGraph(
+            emptyList(),
+            emptyList(),
+            listOf(
                 UserGraphNodeInput(
                     name = "研究室",
                     connectedNodeId = "base",
@@ -43,18 +43,19 @@ class UiSelectionFiltersTest {
                     isSelectableAsStart = true,
                 ),
             ),
-            userEdgeOverrides = emptyList(),
+            emptyList(),
         )
+        val nodes = graph.first
 
         assertTrue(selectableMapNodes(nodes).isEmpty())
     }
 
     @Test
     fun userAddedNodeWithManualCoordinatesIsMapSelectableAndKeepsCoordinates() {
-        val (nodes, _) = CampusGraphBuilder.buildGraph(
-            standardNodes = emptyList(),
-            standardEdges = emptyList(),
-            userNodeInputs = listOf(
+        val graph = CampusGraphBuilder.buildGraph(
+            emptyList(),
+            emptyList(),
+            listOf(
                 UserGraphNodeInput(
                     name = "研究室",
                     connectedNodeId = "base",
@@ -65,8 +66,9 @@ class UiSelectionFiltersTest {
                     coordinateSource = UserNodeCoordinateSource.MANUAL,
                 ),
             ),
-            userEdgeOverrides = emptyList(),
+            emptyList(),
         )
+        val nodes = graph.first
 
         val result = selectableMapNodes(nodes)
 
