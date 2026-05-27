@@ -1,0 +1,48 @@
+# Android / Gradle
+.gradle/
+**/build/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.ap_
+*.aab
+*.aar
+*.dex
+
+# Java / Kotlin
+*.class
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+*.war
+*.ear
+*.hprof
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.iws
+out/
+
+# Generated signing and reports
+*.jks
+*.keystore
+lint-results*.html
+lint-results*.xml
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Codex / MCP / local agent state
+.serena/
+.mcp/
+.mcp.json
+mcp.json
+mcp-*.json
+*.mcp.log
+.codex/
+.claude/
