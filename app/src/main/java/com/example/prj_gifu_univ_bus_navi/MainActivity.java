@@ -28,6 +28,11 @@ import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import com.example.prj_gifu_univ_bus_navi.data.LocalBusScheduleData;
 import com.example.prj_gifu_univ_bus_navi.data.UserSettingsRepository;
 import com.example.prj_gifu_univ_bus_navi.data.WeatherRepository;
@@ -57,8 +62,20 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         setContentView(R.layout.activity_main);
         root = findViewById(R.id.main);
+
+        ViewCompat.setOnApplyWindowInsetsListener(root, (v, windowInsets) -> {
+            Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(insets.left, insets.top, insets.right, insets.bottom);
+            return WindowInsetsCompat.CONSUMED;
+        });
+
+        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        controller.setAppearanceLightStatusBars(true);
+        controller.setAppearanceLightNavigationBars(true);
+
         viewModel.loadInitialData(
             LocalBusScheduleData.loadBusTrips(this),
             LocalBusScheduleData.loadDestinationStopNames(this),
@@ -105,9 +122,12 @@ public class MainActivity extends AppCompatActivity {
     private void showHome() {
         viewModel.navigate(AppScreen.HOME);
         LinearLayout content = baseContent();
+        content.addView(screenTitle("岐大バスナビ"));
+
         CampusMapView mapView = new CampusMapView(this);
         mapView.setNodes(viewModel.getMapSelectableNodes());
         mapView.setGpsLocation(gpsLocation);
+        mapView.setSelectedNodeId(viewModel.getSelectedCurrentNodeId());
         mapView.setOnNodeTapListener(node -> {
             viewModel.selectMapNodeAndRecommend(node.getId());
             showResult();
@@ -356,21 +376,29 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private TextView candidateView(BusStopCandidate candidate, boolean recommended) {
-        String text = candidate.getBusStopName() +
-            "\n発車時刻: " + candidate.getDepartureTime().format(DateTimeFormatter.ofPattern("HH:mm")) +
-            "\nバス停までの移動時間: " + candidate.getTravelMinutes() + "分" +
-            "\nバス停への到着予想時刻: " + candidate.getArrivalTimeAtBusStop().format(DateTimeFormatter.ofPattern("HH:mm")) +
-            "\n到着予定時刻: " + candidate.getDestinationArrivalTime().format(DateTimeFormatter.ofPattern("HH:mm")) +
-            "\n発車までの余裕時間: " + candidate.getRemainingMinutes() + "分" +
-            "\n連接バス可能性: " + (candidate.isMayBeArticulatedBus() ? "あり" : "なし");
-        TextView view = label(text);
-        view.setPadding(dp(14), dp(12), dp(14), dp(12));
-        view.setBackground(cardBackground(recommended ? Color.rgb(232, 245, 255) : Color.WHITE));
+        StringBuilder sb = new StringBuilder();
+        sb.append(candidate.getBusStopName()).append("\n");
+        sb.append("発車: ").append(candidate.getDepartureTime().format(DateTimeFormatter.ofPattern("HH:mm"))).append(" ");
+        sb.append("(到着予定: ").append(candidate.getDestinationArrivalTime().format(DateTimeFormatter.ofPattern("HH:mm"))).append(")\n");
+        sb.append("徒歩: ").append(candidate.getTravelMinutes()).append("分 ");
+        sb.append("余裕: ").append(candidate.getRemainingMinutes()).append("分");
+        if (candidate.isMayBeArticulatedBus()) {
+            sb.append("\n※連接バスの可能性あり");
+        }
+
+        TextView view = label(sb.toString());
+        view.setPadding(dp(16), dp(16), dp(16), dp(16));
+        view.setLineSpacing(0, 1.2f);
+        view.setBackground(cardBackground(recommended ? Color.rgb(225, 245, 254) : Color.rgb(250, 250, 250)));
+        if (recommended) {
+            view.setTypeface(Typeface.DEFAULT_BOLD);
+        }
+
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        params.setMargins(0, dp(6), 0, dp(10));
+        params.setMargins(0, dp(4), 0, dp(12));
         view.setLayoutParams(params);
         return view;
     }
@@ -378,22 +406,26 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout baseContent() {
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(dp(20), dp(18), dp(20), dp(24));
+        content.setPadding(dp(20), dp(16), dp(20), dp(32));
+        content.setBackgroundColor(Color.WHITE);
         return content;
     }
 
     private void setContent(LinearLayout content) {
         ScrollView scrollView = new ScrollView(this);
+        scrollView.setFillViewport(true);
+        scrollView.setBackgroundColor(Color.WHITE);
         scrollView.addView(content);
         root.removeAllViews();
         root.addView(scrollView);
     }
 
     private TextView backButton() {
-        TextView back = label("＜");
-        back.setTextSize(28);
-        back.setTypeface(Typeface.DEFAULT_BOLD);
-        back.setPadding(0, 0, 0, dp(8));
+        TextView back = new TextView(this);
+        back.setText("← 戻る");
+        back.setTextSize(16);
+        back.setTextColor(Color.rgb(2, 136, 209));
+        back.setPadding(0, dp(8), dp(16), dp(16));
         back.setOnClickListener(v -> {
             viewModel.navigateBack();
             renderCurrentScreen();
@@ -404,9 +436,9 @@ public class MainActivity extends AppCompatActivity {
     private TextView label(String text) {
         TextView view = new TextView(this);
         view.setText(text == null ? "" : text);
-        view.setTextSize(16);
-        view.setTextColor(Color.rgb(28, 34, 43));
-        view.setPadding(0, dp(8), 0, dp(8));
+        view.setTextSize(15);
+        view.setTextColor(Color.rgb(55, 71, 79));
+        view.setPadding(0, dp(6), 0, dp(6));
         return view;
     }
 
@@ -414,13 +446,14 @@ public class MainActivity extends AppCompatActivity {
         Button button = new Button(this);
         button.setText(text);
         button.setTextSize(16);
-        button.setMinHeight(dp(48));
+        button.setElevation(dp(2));
+        button.setMinHeight(dp(54));
         button.setAllCaps(false);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        params.setMargins(0, dp(8), 0, dp(4));
+        params.setMargins(0, dp(12), 0, dp(8));
         button.setLayoutParams(params);
         return button;
     }
@@ -428,14 +461,15 @@ public class MainActivity extends AppCompatActivity {
     private Button primaryButton(String text) {
         Button button = button(text);
         button.setTextColor(Color.WHITE);
-        button.setBackground(buttonBackground(Color.rgb(31, 93, 164)));
+        button.setBackground(buttonBackground(Color.rgb(2, 136, 209)));
         return button;
     }
 
     private Button secondaryButton(String text) {
         Button button = button(text);
-        button.setTextColor(Color.rgb(31, 93, 164));
-        button.setBackground(buttonBackground(Color.rgb(237, 244, 252)));
+        button.setTextColor(Color.rgb(2, 136, 209));
+        button.setBackground(buttonBackground(Color.rgb(225, 245, 254)));
+        button.setElevation(0);
         return button;
     }
 
@@ -444,7 +478,9 @@ public class MainActivity extends AppCompatActivity {
         editText.setHint(hint);
         editText.setInputType(inputType);
         editText.setTextSize(16);
-        editText.setMinHeight(dp(48));
+        editText.setMinHeight(dp(54));
+        editText.setPadding(dp(12), dp(12), dp(12), dp(12));
+        editText.setBackground(cardBackground(Color.rgb(250, 250, 250)));
         editText.setSingleLine(true);
         return editText;
     }
@@ -452,30 +488,36 @@ public class MainActivity extends AppCompatActivity {
     private Spinner spinner(List<String> values) {
         Spinner spinner = new Spinner(this);
         spinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, values));
-        spinner.setMinimumHeight(dp(48));
+        spinner.setMinimumHeight(dp(54));
+        spinner.setPadding(dp(8), dp(8), dp(8), dp(8));
+        spinner.setBackground(cardBackground(Color.rgb(250, 250, 250)));
         return spinner;
     }
 
     private TextView screenTitle(String text) {
         TextView view = label(text);
-        view.setTextSize(22);
-        view.setTypeface(Typeface.DEFAULT_BOLD);
-        view.setPadding(0, dp(4), 0, dp(14));
+        view.setTextSize(24);
+        view.setTextColor(Color.rgb(38, 50, 56));
+        view.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        view.setPadding(0, dp(8), 0, dp(20));
         return view;
     }
 
     private TextView sectionLabel(String text) {
         TextView view = label(text);
         view.setTextSize(18);
-        view.setTypeface(Typeface.DEFAULT_BOLD);
-        view.setPadding(0, dp(14), 0, dp(6));
+        view.setTextColor(Color.rgb(69, 90, 100));
+        view.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        view.setPadding(0, dp(20), 0, dp(8));
         return view;
     }
 
     private TextView fieldLabel(String text) {
         TextView view = label(text);
+        view.setTextSize(14);
+        view.setTextColor(Color.rgb(120, 144, 156));
         view.setTypeface(Typeface.DEFAULT_BOLD);
-        view.setPadding(0, dp(14), 0, dp(4));
+        view.setPadding(0, dp(16), 0, dp(4));
         return view;
     }
 
@@ -533,15 +575,15 @@ public class MainActivity extends AppCompatActivity {
     private GradientDrawable cardBackground(int color) {
         GradientDrawable drawable = new GradientDrawable();
         drawable.setColor(color);
-        drawable.setCornerRadius(dp(8));
-        drawable.setStroke(dp(1), Color.rgb(220, 226, 235));
+        drawable.setCornerRadius(dp(12));
+        drawable.setStroke(dp(1), Color.rgb(236, 239, 241));
         return drawable;
     }
 
     private GradientDrawable buttonBackground(int color) {
         GradientDrawable drawable = new GradientDrawable();
         drawable.setColor(color);
-        drawable.setCornerRadius(dp(8));
+        drawable.setCornerRadius(dp(24));
         return drawable;
     }
 
