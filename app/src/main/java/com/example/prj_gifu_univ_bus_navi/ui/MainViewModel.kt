@@ -4,20 +4,24 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
-import com.example.prj_gifu_univ_bus_navi.data.LocalBusScheduleData
+import androidx.lifecycle.viewModelScope
 import com.example.prj_gifu_univ_bus_navi.data.LocalBusStopData
 import com.example.prj_gifu_univ_bus_navi.data.LocalCampusGraphData
 import com.example.prj_gifu_univ_bus_navi.data.LocalSchoolHolidayData
+import com.example.prj_gifu_univ_bus_navi.data.UserSettingsRepository
 import com.example.prj_gifu_univ_bus_navi.logic.BusRecommendationEngine
 import com.example.prj_gifu_univ_bus_navi.logic.CampusGraphBuilder
+import com.example.prj_gifu_univ_bus_navi.model.BusTrip
 import com.example.prj_gifu_univ_bus_navi.model.CampusGraphEdge
 import com.example.prj_gifu_univ_bus_navi.model.CampusGraphNode
 import com.example.prj_gifu_univ_bus_navi.model.DestinationBusStop
 import com.example.prj_gifu_univ_bus_navi.model.RecommendationResult
 import com.example.prj_gifu_univ_bus_navi.model.UserEdgeOverride
 import com.example.prj_gifu_univ_bus_navi.model.UserGraphNodeInput
+import com.example.prj_gifu_univ_bus_navi.model.UserTravelTimeProfile
 import java.time.LocalDate
 import java.time.LocalTime
+import kotlinx.coroutines.launch
 
 enum class AppScreen {
     HOME,
@@ -26,6 +30,7 @@ enum class AppScreen {
     MAP_SELECT,
     ADD_NODE,
     EDIT_TRAVEL_TIME,
+    TRAVEL_TIME_PROFILE,
 }
 
 data class SafetyMarginOption(
@@ -60,6 +65,14 @@ class MainViewModel : ViewModel() {
         private set
     var userEdgeOverrides by mutableStateOf<List<UserEdgeOverride>>(emptyList())
         private set
+    var userTravelTimeProfile by mutableStateOf<UserTravelTimeProfile?>(null)
+        private set
+    var rainModeEnabled by mutableStateOf(false)
+        private set
+    var favoriteStartNodeId by mutableStateOf<String?>(null)
+        private set
+    private var busTrips by mutableStateOf<List<BusTrip>>(emptyList())
+    private var settingsRepository: UserSettingsRepository? = null
 
     val safetyMarginOptions: List<SafetyMarginOption> = safetyOptions
 
@@ -69,6 +82,8 @@ class MainViewModel : ViewModel() {
             LocalCampusGraphData.edges,
             userNodeInputs,
             userEdgeOverrides,
+            userTravelTimeProfile,
+            rainModeEnabled,
         ).first
 
     val graphEdges: List<CampusGraphEdge>
@@ -77,6 +92,8 @@ class MainViewModel : ViewModel() {
             LocalCampusGraphData.edges,
             userNodeInputs,
             userEdgeOverrides,
+            userTravelTimeProfile,
+            rainModeEnabled,
         ).second
 
     val selectableStartNodes: List<CampusGraphNode>
@@ -88,6 +105,31 @@ class MainViewModel : ViewModel() {
     val editableEdges: List<CampusGraphEdge>
         get() = LocalCampusGraphData.edges.filter { it.isSelectableForUserEdit }
 
+    val favoriteStartNodeName: String?
+        get() = favoriteStartNodeId?.let { id -> graphNodes.firstOrNull { it.id == id }?.name }
+
+    fun loadInitialData(busTrips: List<BusTrip>, repository: UserSettingsRepository) {
+        this.busTrips = busTrips
+        if (settingsRepository != null) return
+        settingsRepository = repository
+        viewModelScope.launch {
+            repository.settingsFlow.collect { settings ->
+                selectedDestination = settings.selectedDestination
+                selectedSafetyMargin = safetyOptions.firstOrNull { it.minutes == settings.safetyMarginMinutes } ?: selectedSafetyMargin
+                rainModeEnabled = settings.rainModeEnabled
+                userNodeInputs = settings.userNodeInputs
+                userEdgeOverrides = settings.userEdgeOverrides
+                userTravelTimeProfile = settings.userTravelTimeProfile
+                favoriteStartNodeId = settings.favoriteStartNodeId
+                val preferred = settings.favoriteStartNodeId?.takeIf { id -> selectableStartNodes.any { it.id == id } }
+                if (preferred != null) {
+                    selectedCurrentNodeId = preferred
+                    selectedMapNodeId = preferred
+                }
+            }
+        }
+    }
+
     fun selectCurrentNode(nodeId: String) {
         selectedCurrentNodeId = nodeId
         selectedMapNodeId = nodeId
@@ -95,10 +137,12 @@ class MainViewModel : ViewModel() {
 
     fun selectDestination(destination: DestinationBusStop) {
         selectedDestination = destination
+        viewModelScope.launch { settingsRepository?.saveSelectedDestination(destination) }
     }
 
     fun selectSafetyMargin(option: SafetyMarginOption) {
         selectedSafetyMargin = option
+        viewModelScope.launch { settingsRepository?.saveSafetyMarginMinutes(option.minutes) }
     }
 
     fun findBestBus() {
@@ -109,7 +153,7 @@ class MainViewModel : ViewModel() {
             nowTime = currentTime,
             safetyMarginMinutes = selectedSafetyMargin.minutes,
             selectedDestination = selectedDestination,
-            busTrips = LocalBusScheduleData.busTrips,
+            busTrips = busTrips,
             busStops = LocalBusStopData.busStops,
             graphNodes = graphNodes,
             graphEdges = graphEdges,
@@ -120,6 +164,7 @@ class MainViewModel : ViewModel() {
 
     fun addUserNode(input: UserGraphNodeInput) {
         userNodeInputs = userNodeInputs + input
+        viewModelScope.launch { settingsRepository?.saveUserNodeInputs(userNodeInputs) }
         if (input.isSelectableAsStart) {
             selectedCurrentNodeId = graphNodes.last().id
             selectedMapNodeId = selectedCurrentNodeId
@@ -133,6 +178,7 @@ class MainViewModel : ViewModel() {
         } else {
             userEdgeOverrides.filterNot { it.baseEdgeId == edgeId } + UserEdgeOverride(edgeId, minutes)
         }
+        viewModelScope.launch { settingsRepository?.saveUserEdgeOverrides(userEdgeOverrides) }
     }
 
     fun edgeOverrideMinutes(edgeId: String): Int? =
@@ -151,6 +197,28 @@ class MainViewModel : ViewModel() {
         selectedMapNodeId = nodeId
         selectedCurrentNodeId = nodeId
         findBestBus()
+    }
+
+    fun updateRainModeEnabled(enabled: Boolean) {
+        rainModeEnabled = enabled
+        viewModelScope.launch { settingsRepository?.saveRainModeEnabled(enabled) }
+    }
+
+    fun saveFavoriteStartNode() {
+        favoriteStartNodeId = selectedCurrentNodeId
+        viewModelScope.launch { settingsRepository?.saveFavoriteStartNodeId(selectedCurrentNodeId) }
+    }
+
+    fun saveTravelTimeProfile(edgeId: String, standardMinutes: Int, measuredMinutes: Int) {
+        if (standardMinutes <= 0 || measuredMinutes <= 0) return
+        userTravelTimeProfile = UserTravelTimeProfile(
+            calibrationEdgeId = edgeId,
+            standardMinutes = standardMinutes,
+            measuredMinutes = measuredMinutes,
+            timeScaleFactor = measuredMinutes.toDouble() / standardMinutes.toDouble(),
+        )
+        viewModelScope.launch { settingsRepository?.saveUserTravelTimeProfile(userTravelTimeProfile) }
+        currentScreen = AppScreen.SETTINGS
     }
 
     fun navigate(screen: AppScreen) {

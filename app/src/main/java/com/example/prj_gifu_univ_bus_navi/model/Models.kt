@@ -2,6 +2,7 @@ package com.example.prj_gifu_univ_bus_navi.model
 
 import java.time.LocalDate
 import java.time.LocalTime
+import kotlinx.serialization.Serializable
 
 enum class BaseDayType {
     WEEKDAY,
@@ -51,9 +52,9 @@ data class BusTrip(
     val destination: String,
     val baseDayType: BaseDayType,
     val routeName: String,
-    val hospitalDepartureTime: LocalTime,
-    val yanagidoDepartureTime: LocalTime,
-    val universityDepartureTime: LocalTime,
+    val hospitalDepartureTime: LocalTime?,
+    val yanagidoDepartureTime: LocalTime?,
+    val universityDepartureTime: LocalTime?,
     val jrGifuArrivalTime: LocalTime?,
     val meitetsuGifuArrivalTime: LocalTime?,
     val operationRule: OperationRule,
@@ -87,6 +88,7 @@ data class CampusGraphEdge(
     val isSelectableForUserEdit: Boolean,
 )
 
+@Serializable
 data class UserGraphNodeInput(
     val name: String,
     val connectedNodeId: String,
@@ -97,9 +99,18 @@ data class UserGraphNodeInput(
     val coordinateSource: UserNodeCoordinateSource = UserNodeCoordinateSource.NONE,
 )
 
+@Serializable
 data class UserEdgeOverride(
     val baseEdgeId: String,
     val minutes: Int,
+)
+
+@Serializable
+data class UserTravelTimeProfile(
+    val calibrationEdgeId: String,
+    val standardMinutes: Int,
+    val measuredMinutes: Int,
+    val timeScaleFactor: Double,
 )
 
 data class ShortestPathResult(

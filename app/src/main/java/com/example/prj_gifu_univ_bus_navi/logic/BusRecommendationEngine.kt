@@ -37,10 +37,11 @@ object BusRecommendationEngine {
             val arrival = DestinationStopMatcher.resolveArrival(trip, selectedDestination) ?: return@flatMap emptyList()
             busStops.mapNotNull { busStop ->
                 val path = pathsByStop[busStop] ?: return@mapNotNull null
+                val departureTime = trip.departureTimeAt(busStop.id) ?: return@mapNotNull null
                 createCandidate(
                     trip = trip,
                     busStop = busStop,
-                    departureTime = trip.departureTimeAt(busStop.id),
+                    departureTime = departureTime,
                     travelMinutes = path.totalMinutes,
                     nowTime = nowTime,
                     safetyMarginMinutes = safetyMarginMinutes,
@@ -96,7 +97,7 @@ object BusRecommendationEngine {
         )
     }
 
-    private fun BusTrip.departureTimeAt(busStopId: BusStopId): LocalTime = when (busStopId) {
+    private fun BusTrip.departureTimeAt(busStopId: BusStopId): LocalTime? = when (busStopId) {
         BusStopId.GIFU_UNIV_HOSPITAL -> hospitalDepartureTime
         BusStopId.YANAGIDO -> yanagidoDepartureTime
         BusStopId.GIFU_UNIV -> universityDepartureTime

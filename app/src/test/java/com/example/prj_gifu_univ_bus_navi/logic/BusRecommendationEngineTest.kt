@@ -58,7 +58,7 @@ class BusRecommendationEngineTest {
         destination: DestinationBusStop,
     ) = BusRecommendationEngine.recommend(
         currentNodeId = "start",
-        nowDate = LocalDate.of(2026, 5, 4),
+        nowDate = LocalDate.of(2026, 5, 7),
         nowTime = nowTime,
         safetyMarginMinutes = safetyMargin,
         selectedDestination = destination,

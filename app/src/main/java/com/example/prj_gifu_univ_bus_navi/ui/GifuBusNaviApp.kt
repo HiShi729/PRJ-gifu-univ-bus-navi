@@ -39,6 +39,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -99,6 +100,7 @@ fun GifuBusNaviApp(viewModel: MainViewModel) {
                     AppScreen.MAP_SELECT -> MapSelectScreen(viewModel)
                     AppScreen.ADD_NODE -> AddNodeScreen(viewModel)
                     AppScreen.EDIT_TRAVEL_TIME -> EditTravelTimeScreen(viewModel)
+                    AppScreen.TRAVEL_TIME_PROFILE -> TravelTimeProfileScreen(viewModel)
                 }
             }
         }
@@ -184,6 +186,22 @@ private fun SettingsScreen(viewModel: MainViewModel) {
             onClick = { viewModel.navigate(AppScreen.EDIT_TRAVEL_TIME) },
             modifier = Modifier.fillMaxWidth(),
         ) { Text("移動時間編集") }
+        OutlinedButton(
+            onClick = { viewModel.navigate(AppScreen.TRAVEL_TIME_PROFILE) },
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("移動時間補正") }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Switch(checked = viewModel.rainModeEnabled, onCheckedChange = viewModel::updateRainModeEnabled)
+            Text("雨の日モード")
+        }
+        if (viewModel.rainModeEnabled) {
+            Text("移動時間を雨天用に長めに見積もります")
+        }
+        Text("よく使う出発地点: ${viewModel.favoriteStartNodeName ?: "未設定"}")
+        OutlinedButton(
+            onClick = viewModel::saveFavoriteStartNode,
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("現在の地点をよく使う出発地点にする") }
         Button(onClick = viewModel::goHome, modifier = Modifier.fillMaxWidth()) {
             Text("ホームへ戻る")
         }
@@ -488,6 +506,66 @@ private fun EditTravelTimeScreen(viewModel: MainViewModel) {
 }
 
 @Composable
+private fun TravelTimeProfileScreen(viewModel: MainViewModel) {
+    val edges = viewModel.editableEdges
+    var selectedEdgeId by remember { mutableStateOf(edges.firstOrNull()?.id.orEmpty()) }
+    var measuredText by remember { mutableStateOf(viewModel.userTravelTimeProfile?.measuredMinutes?.toString().orEmpty()) }
+    val selectedEdge = edges.firstOrNull { it.id == selectedEdgeId }
+    val measuredMinutes = measuredText.toIntOrNull()
+    val factor = if (selectedEdge != null && measuredMinutes != null && selectedEdge.minutes > 0 && measuredMinutes > 0) {
+        measuredMinutes.toDouble() / selectedEdge.minutes.toDouble()
+    } else {
+        null
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text("移動時間補正", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        EdgeDropdown(
+            label = "基準エッジ",
+            edges = edges,
+            nodes = viewModel.graphNodes,
+            selectedEdgeId = selectedEdgeId,
+            onSelected = { selectedEdgeId = it },
+        )
+        Text("標準移動時間: ${selectedEdge?.minutes ?: 0}分")
+        OutlinedTextField(
+            value = measuredText,
+            onValueChange = { measuredText = it.filter(Char::isDigit) },
+            label = { Text("実測移動時間（分）") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+        )
+        Text("補正係数: ${factor?.let { "%.2f".format(it) } ?: "-"}")
+        factor?.let {
+            Text("あなたの移動時間は標準の約${(it * 100).toInt()}%として計算されます")
+            if (it < 0.3 || it > 2.0) {
+                Text("補正係数が極端です。入力値を確認してください。", color = MaterialTheme.colorScheme.error)
+            }
+        }
+        Button(
+            onClick = {
+                val edge = selectedEdge ?: return@Button
+                val measured = measuredMinutes ?: return@Button
+                viewModel.saveTravelTimeProfile(edge.id, edge.minutes, measured)
+            },
+            enabled = selectedEdge != null && measuredMinutes != null && measuredMinutes > 0 && selectedEdge.minutes > 0,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("保存")
+        }
+        OutlinedButton(onClick = { viewModel.navigate(AppScreen.SETTINGS) }, modifier = Modifier.fillMaxWidth()) {
+            Text("戻る")
+        }
+    }
+}
+
+@Composable
 private fun EdgeEditor(
     edge: CampusGraphEdge,
     nodes: List<CampusGraphNode>,
@@ -513,6 +591,48 @@ private fun EdgeEditor(
             )
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EdgeDropdown(
+    label: String,
+    edges: List<CampusGraphEdge>,
+    nodes: List<CampusGraphNode>,
+    selectedEdgeId: String,
+    onSelected: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedEdge = edges.firstOrNull { it.id == selectedEdgeId }
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+        OutlinedTextField(
+            value = selectedEdge?.displayName(nodes).orEmpty(),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+            modifier = Modifier
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth(),
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            edges.forEach { edge ->
+                DropdownMenuItem(
+                    text = { Text(edge.displayName(nodes)) },
+                    onClick = {
+                        onSelected(edge.id)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
+}
+
+private fun CampusGraphEdge.displayName(nodes: List<CampusGraphNode>): String {
+    val from = nodes.firstOrNull { it.id == fromNodeId }?.name ?: fromNodeId
+    val to = nodes.firstOrNull { it.id == toNodeId }?.name ?: toNodeId
+    return "$from - $to"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
