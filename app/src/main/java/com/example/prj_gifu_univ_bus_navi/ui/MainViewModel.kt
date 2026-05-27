@@ -22,6 +22,8 @@ import java.time.LocalTime
 enum class AppScreen {
     HOME,
     RESULT,
+    SETTINGS,
+    MAP_SELECT,
     ADD_NODE,
     EDIT_TRAVEL_TIME,
 }
@@ -45,6 +47,8 @@ class MainViewModel : ViewModel() {
     var selectedDestination by mutableStateOf(DestinationBusStop.JR_GIFU)
         private set
     var selectedSafetyMargin by mutableStateOf(safetyOptions[1])
+        private set
+    var selectedMapNodeId by mutableStateOf(selectedCurrentNodeId)
         private set
     var recommendationResult by mutableStateOf<RecommendationResult?>(null)
         private set
@@ -78,11 +82,15 @@ class MainViewModel : ViewModel() {
     val selectableStartNodes: List<CampusGraphNode>
         get() = graphNodes.filter { it.isSelectableAsStart }
 
+    val mapSelectableNodes: List<CampusGraphNode>
+        get() = selectableMapNodes(graphNodes)
+
     val editableEdges: List<CampusGraphEdge>
         get() = LocalCampusGraphData.edges.filter { it.isSelectableForUserEdit }
 
     fun selectCurrentNode(nodeId: String) {
         selectedCurrentNodeId = nodeId
+        selectedMapNodeId = nodeId
     }
 
     fun selectDestination(destination: DestinationBusStop) {
@@ -114,8 +122,9 @@ class MainViewModel : ViewModel() {
         userNodeInputs = userNodeInputs + input
         if (input.isSelectableAsStart) {
             selectedCurrentNodeId = graphNodes.last().id
+            selectedMapNodeId = selectedCurrentNodeId
         }
-        currentScreen = AppScreen.HOME
+        currentScreen = AppScreen.SETTINGS
     }
 
     fun setEdgeOverride(edgeId: String, minutes: Int?) {
@@ -128,6 +137,15 @@ class MainViewModel : ViewModel() {
 
     fun edgeOverrideMinutes(edgeId: String): Int? =
         userEdgeOverrides.firstOrNull { it.baseEdgeId == edgeId }?.minutes
+
+    fun selectMapNode(nodeId: String) {
+        selectedMapNodeId = nodeId
+    }
+
+    fun confirmMapNodeSelection() {
+        selectedCurrentNodeId = selectedMapNodeId
+        currentScreen = AppScreen.HOME
+    }
 
     fun navigate(screen: AppScreen) {
         currentScreen = screen
