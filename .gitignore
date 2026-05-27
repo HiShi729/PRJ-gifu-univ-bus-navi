@@ -21,6 +21,7 @@ captures/
 
 # Android Studio / IntelliJ
 .idea/
+.vscode/
 *.iml
 *.iws
 out/
