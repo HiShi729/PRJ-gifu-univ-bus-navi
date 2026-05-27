@@ -496,13 +496,13 @@ private fun AddNodeScreen(viewModel: MainViewModel) {
             onClick = {
                 viewModel.addUserNode(
                     UserGraphNodeInput(
-                        name = name.trim(),
-                        connectedNodeId = connectedNodeId,
-                        minutesToConnectedNode = minutes ?: 1,
-                        isSelectableAsStart = selectable,
-                        latitude = if (coordinateSource == UserNodeCoordinateSource.NONE) null else latitude,
-                        longitude = if (coordinateSource == UserNodeCoordinateSource.NONE) null else longitude,
-                        coordinateSource = coordinateSource,
+                        name.trim(),
+                        connectedNodeId,
+                        minutes ?: 1,
+                        selectable,
+                        if (coordinateSource == UserNodeCoordinateSource.NONE) null else latitude,
+                        if (coordinateSource == UserNodeCoordinateSource.NONE) null else longitude,
+                        coordinateSource,
                     ),
                 )
             },

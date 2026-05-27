@@ -21,7 +21,6 @@ import com.example.prj_gifu_univ_bus_navi.model.UserGraphNodeInput
 import com.example.prj_gifu_univ_bus_navi.model.UserTravelTimeProfile
 import java.time.LocalDate
 import java.time.LocalTime
-import kotlinx.coroutines.launch
 
 enum class AppScreen {
     HOME,
@@ -124,25 +123,22 @@ class MainViewModel : ViewModel() {
         if (settingsRepository != null) return
         settingsRepository = repository
         this.weatherRepository = weatherRepository
-        viewModelScope.launch {
-            repository.settingsFlow.collect { settings ->
-                selectedDestinationStopName = settings.selectedDestinationStopName
-                    .takeIf { it in this@MainViewModel.destinationStopNames }
-                    ?: "JR岐阜"
-                selectedSafetyMargin = safetyOptions.firstOrNull { it.minutes == settings.safetyMarginMinutes } ?: selectedSafetyMargin
-                rainModeEnabled = settings.rainModeEnabled
-                userNodeInputs = settings.userNodeInputs
-                userEdgeOverrides = settings.userEdgeOverrides
-                userTravelTimeProfile = settings.userTravelTimeProfile
-                favoriteStartNodeId = settings.favoriteStartNodeId
-                val preferred = settings.favoriteStartNodeId?.takeIf { id -> selectableStartNodes.any { it.id == id } }
-                if (preferred != null) {
-                    selectedCurrentNodeId = preferred
-                    selectedMapNodeId = preferred
-                }
-                requestRainForecastOnce()
-            }
+        val settings = repository.loadSettings()
+        selectedDestinationStopName = settings.selectedDestinationStopName
+            .takeIf { it in this@MainViewModel.destinationStopNames }
+            ?: "JR岐阜"
+        selectedSafetyMargin = safetyOptions.firstOrNull { it.minutes == settings.safetyMarginMinutes } ?: selectedSafetyMargin
+        rainModeEnabled = settings.isRainModeEnabled
+        userNodeInputs = settings.userNodeInputs
+        userEdgeOverrides = settings.userEdgeOverrides
+        userTravelTimeProfile = settings.userTravelTimeProfile
+        favoriteStartNodeId = settings.favoriteStartNodeId
+        val preferred = settings.favoriteStartNodeId?.takeIf { id -> selectableStartNodes.any { it.id == id } }
+        if (preferred != null) {
+            selectedCurrentNodeId = preferred
+            selectedMapNodeId = preferred
         }
+        requestRainForecastOnce()
     }
 
     fun selectCurrentNode(nodeId: String) {
@@ -152,12 +148,12 @@ class MainViewModel : ViewModel() {
 
     fun selectDestinationStop(stopName: String) {
         selectedDestinationStopName = stopName
-        viewModelScope.launch { settingsRepository?.saveSelectedDestinationStopName(stopName) }
+        settingsRepository?.saveSelectedDestinationStopName(stopName)
     }
 
     fun selectSafetyMargin(option: SafetyMarginOption) {
         selectedSafetyMargin = option
-        viewModelScope.launch { settingsRepository?.saveSafetyMarginMinutes(option.minutes) }
+        settingsRepository?.saveSafetyMarginMinutes(option.minutes)
     }
 
     fun findBestBus() {
@@ -179,7 +175,7 @@ class MainViewModel : ViewModel() {
 
     fun addUserNode(input: UserGraphNodeInput) {
         userNodeInputs = userNodeInputs + input
-        viewModelScope.launch { settingsRepository?.saveUserNodeInputs(userNodeInputs) }
+        settingsRepository?.saveUserNodeInputs(userNodeInputs)
         if (input.isSelectableAsStart) {
             selectedCurrentNodeId = graphNodes.last().id
             selectedMapNodeId = selectedCurrentNodeId
@@ -193,7 +189,7 @@ class MainViewModel : ViewModel() {
         } else {
             userEdgeOverrides.filterNot { it.baseEdgeId == edgeId } + UserEdgeOverride(edgeId, minutes)
         }
-        viewModelScope.launch { settingsRepository?.saveUserEdgeOverrides(userEdgeOverrides) }
+        settingsRepository?.saveUserEdgeOverrides(userEdgeOverrides)
     }
 
     fun edgeOverrideMinutes(edgeId: String): Int? =
@@ -217,23 +213,23 @@ class MainViewModel : ViewModel() {
     fun updateRainModeEnabled(enabled: Boolean) {
         rainModeEnabled = enabled
         rainForecastStatus = if (enabled) "手動ON" else "手動OFF"
-        viewModelScope.launch { settingsRepository?.saveRainModeEnabled(enabled) }
+        settingsRepository?.saveRainModeEnabled(enabled)
     }
 
     fun selectFavoriteStartNode(nodeId: String?) {
         favoriteStartNodeId = nodeId
-        viewModelScope.launch { settingsRepository?.saveFavoriteStartNodeId(nodeId) }
+        settingsRepository?.saveFavoriteStartNodeId(nodeId)
     }
 
     fun saveTravelTimeProfile(edgeId: String, standardMinutes: Int, measuredMinutes: Int) {
         if (standardMinutes <= 0 || measuredMinutes <= 0) return
         userTravelTimeProfile = UserTravelTimeProfile(
-            calibrationEdgeId = edgeId,
-            standardMinutes = standardMinutes,
-            measuredMinutes = measuredMinutes,
-            timeScaleFactor = measuredMinutes.toDouble() / standardMinutes.toDouble(),
+            edgeId,
+            standardMinutes,
+            measuredMinutes,
+            measuredMinutes.toDouble() / standardMinutes.toDouble(),
         )
-        viewModelScope.launch { settingsRepository?.saveUserTravelTimeProfile(userTravelTimeProfile) }
+        settingsRepository?.saveUserTravelTimeProfile(userTravelTimeProfile)
         currentScreen = AppScreen.SETTINGS
     }
 
@@ -264,8 +260,8 @@ class MainViewModel : ViewModel() {
     private fun requestRainForecastOnce() {
         if (hasRequestedWeather) return
         hasRequestedWeather = true
-        viewModelScope.launch {
-            when (weatherRepository?.isRainExpected()) {
+        weatherRepository?.isRainExpected { rainExpected ->
+            when (rainExpected) {
                 true -> {
                     rainModeEnabled = true
                     rainForecastStatus = "自動: 雨予報のためON"
