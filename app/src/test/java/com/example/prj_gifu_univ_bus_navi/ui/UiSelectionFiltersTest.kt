@@ -19,10 +19,11 @@ class UiSelectionFiltersTest {
     @Test
     fun selectableMapNodesIncludeSelectableStandardNodesAndBusStopsWithCoordinates() {
         val nodes = listOf(
-            node("selectable_standard_with_coords", NodeType.STANDARD, selectable = true, latitude = 35.0, longitude = 136.0),
-            node("not_selectable_standard_with_coords", NodeType.STANDARD, selectable = false, latitude = 35.1, longitude = 136.1),
+            node("selectable_standard_with_coords", NodeType.STANDARD, selectable = true, latitude = 35.4640, longitude = 136.7350),
+            node("not_selectable_standard_with_coords", NodeType.STANDARD, selectable = false, latitude = 35.4641, longitude = 136.7351),
             node("selectable_without_coords", NodeType.STANDARD, selectable = true, latitude = null, longitude = null),
-            node("bus_stop_with_coords", NodeType.BUS_STOP, selectable = false, latitude = 35.2, longitude = 136.2),
+            node("bus_stop_with_coords", NodeType.BUS_STOP, selectable = false, latitude = 35.467137, longitude = 136.735476),
+            node("outside_bounds", NodeType.BUS_STOP, selectable = false, latitude = 35.4800, longitude = 136.7350),
         )
 
         val result = selectableMapNodes(nodes)
@@ -60,8 +61,8 @@ class UiSelectionFiltersTest {
                     connectedNodeId = "base",
                     minutesToConnectedNode = 3,
                     isSelectableAsStart = true,
-                    latitude = 35.45,
-                    longitude = 136.73,
+                    latitude = 35.4645,
+                    longitude = 136.7355,
                     coordinateSource = UserNodeCoordinateSource.MANUAL,
                 ),
             ),
@@ -71,8 +72,8 @@ class UiSelectionFiltersTest {
         val result = selectableMapNodes(nodes)
 
         assertEquals(1, result.size)
-        assertEquals(35.45, result.single().latitude)
-        assertEquals(136.73, result.single().longitude)
+        assertEquals(35.4645, result.single().latitude)
+        assertEquals(136.7355, result.single().longitude)
     }
 
     @Test

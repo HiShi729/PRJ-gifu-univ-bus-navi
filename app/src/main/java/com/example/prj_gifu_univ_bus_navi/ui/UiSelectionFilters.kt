@@ -8,6 +8,7 @@ fun selectableMapNodes(nodes: List<CampusGraphNode>): List<CampusGraphNode> =
     nodes.filter { node ->
         node.latitude != null &&
             node.longitude != null &&
+            MapCoordinateProjector.isInBounds(node.latitude, node.longitude) &&
             (node.nodeType == NodeType.BUS_STOP || (node.isSelectableAsStart && node.nodeType != NodeType.TRANSIT))
     }
 
