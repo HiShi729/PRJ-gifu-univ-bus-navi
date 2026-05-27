@@ -1,19 +1,26 @@
 package com.example.prj_gifu_univ_bus_navi.logic
 
 import com.example.prj_gifu_univ_bus_navi.model.BusTrip
-import com.example.prj_gifu_univ_bus_navi.model.DestinationBusStop
 import java.time.LocalTime
 
 object DestinationStopMatcher {
     fun resolveArrival(
         trip: BusTrip,
-        selectedDestination: DestinationBusStop,
-    ): Pair<DestinationBusStop, LocalTime>? = when (selectedDestination) {
-        DestinationBusStop.JR_GIFU -> trip.jrGifuArrivalTime?.let { DestinationBusStop.JR_GIFU to it }
-        DestinationBusStop.MEITETSU_GIFU -> when {
-            trip.meitetsuGifuArrivalTime != null -> DestinationBusStop.MEITETSU_GIFU to trip.meitetsuGifuArrivalTime
-            trip.jrGifuArrivalTime != null -> DestinationBusStop.JR_GIFU to trip.jrGifuArrivalTime
+        selectedDestinationStopName: String,
+    ): Pair<String, LocalTime>? = when (selectedDestinationStopName) {
+        "JR岐阜" -> trip.stopTime("JR岐阜")?.let { "JR岐阜" to it }
+        "名鉄岐阜" -> when {
+            trip.stopTime("名鉄岐阜") != null -> "名鉄岐阜" to trip.stopTime("名鉄岐阜")!!
+            trip.stopTime("JR岐阜") != null -> "JR岐阜" to trip.stopTime("JR岐阜")!!
             else -> null
         }
+        else -> trip.stopTime(selectedDestinationStopName)?.let { selectedDestinationStopName to it }
     }
+
+    private fun BusTrip.stopTime(stopName: String): LocalTime? =
+        stopTimes[stopName] ?: when (stopName) {
+            "JR岐阜" -> jrGifuArrivalTime
+            "名鉄岐阜" -> meitetsuGifuArrivalTime
+            else -> null
+        }
 }

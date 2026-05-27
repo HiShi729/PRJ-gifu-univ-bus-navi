@@ -13,7 +13,7 @@ class BusTripServiceFilterTest {
     @Test
     fun schoolHolidayExcludedTripIsExcludedOnSchoolHoliday() {
         val trip = trip(OperationRule.SCHOOL_HOLIDAY_EXCLUDED)
-        val context = ServiceCalendar.createContext(LocalDate.of(2026, 5, 1), listOf(LocalDate.of(2026, 5, 1)))
+        val context = ServiceCalendar.createContext(LocalDate.of(2026, 10, 30), emptyList())
 
         assertFalse(BusTripServiceFilter.isTripAvailable(trip, context))
     }
@@ -21,8 +21,8 @@ class BusTripServiceFilterTest {
     @Test
     fun schoolHolidayOnlyTripIsAvailableOnlyOnSchoolHoliday() {
         val trip = trip(OperationRule.SCHOOL_HOLIDAY_ONLY)
-        val holiday = ServiceCalendar.createContext(LocalDate.of(2026, 5, 1), listOf(LocalDate.of(2026, 5, 1)))
-        val normalDay = ServiceCalendar.createContext(LocalDate.of(2026, 5, 4), emptyList())
+        val holiday = ServiceCalendar.createContext(LocalDate.of(2026, 10, 30), emptyList())
+        val normalDay = ServiceCalendar.createContext(LocalDate.of(2026, 5, 7), emptyList())
 
         assertTrue(BusTripServiceFilter.isTripAvailable(trip, holiday))
         assertFalse(BusTripServiceFilter.isTripAvailable(trip, normalDay))
@@ -32,15 +32,15 @@ class BusTripServiceFilterTest {
     fun limitedPeriodTripIsAvailableInMayAndExcludedInSeptember() {
         val trip = trip(OperationRule.LIMITED_PERIOD, 4, 8)
 
-        assertTrue(BusTripServiceFilter.isTripAvailable(trip, ServiceCalendar.createContext(LocalDate.of(2026, 5, 4), emptyList())))
+        assertTrue(BusTripServiceFilter.isTripAvailable(trip, ServiceCalendar.createContext(LocalDate.of(2026, 5, 7), emptyList())))
         assertFalse(BusTripServiceFilter.isTripAvailable(trip, ServiceCalendar.createContext(LocalDate.of(2026, 9, 1), emptyList())))
     }
 
     @Test
     fun limitedPeriodAndSchoolHolidayExcludedTripChecksBothConditions() {
         val trip = trip(OperationRule.LIMITED_PERIOD_AND_SCHOOL_HOLIDAY_EXCLUDED, 4, 8)
-        val normalDay = ServiceCalendar.createContext(LocalDate.of(2026, 5, 4), emptyList())
-        val schoolHoliday = ServiceCalendar.createContext(LocalDate.of(2026, 5, 1), listOf(LocalDate.of(2026, 5, 1)))
+        val normalDay = ServiceCalendar.createContext(LocalDate.of(2026, 5, 7), emptyList())
+        val schoolHoliday = ServiceCalendar.createContext(LocalDate.of(2026, 10, 30), emptyList())
 
         assertTrue(BusTripServiceFilter.isTripAvailable(trip, normalDay))
         assertFalse(BusTripServiceFilter.isTripAvailable(trip, schoolHoliday))

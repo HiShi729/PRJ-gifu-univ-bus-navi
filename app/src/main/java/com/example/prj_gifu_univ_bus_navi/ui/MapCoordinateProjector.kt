@@ -5,7 +5,15 @@ data class CampusMapBounds(
     val bottomLatitude: Double,
     val leftLongitude: Double,
     val rightLongitude: Double,
-)
+) {
+    fun aspectRatio(): Float {
+        val centerLatitudeRadians = Math.toRadians((topLatitude + bottomLatitude) / 2.0)
+        val widthScale = (rightLongitude - leftLongitude) * kotlin.math.cos(centerLatitudeRadians)
+        val heightScale = topLatitude - bottomLatitude
+        if (widthScale <= 0.0 || heightScale <= 0.0) return 1f
+        return (widthScale / heightScale).toFloat()
+    }
+}
 
 data class MapPoint(
     val x: Float,
@@ -50,3 +58,12 @@ object MapCoordinateProjector {
             longitude >= bounds.leftLongitude &&
             longitude <= bounds.rightLongitude
 }
+
+fun isGpsLocationVisibleOnCampusMap(
+    latitude: Double?,
+    longitude: Double?,
+    bounds: CampusMapBounds = CampusMapDefaults.bounds,
+): Boolean =
+    latitude != null &&
+        longitude != null &&
+        MapCoordinateProjector.isInBounds(latitude, longitude, bounds)

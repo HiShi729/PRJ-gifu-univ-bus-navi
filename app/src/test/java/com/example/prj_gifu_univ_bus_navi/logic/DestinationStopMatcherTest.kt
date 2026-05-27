@@ -2,7 +2,6 @@ package com.example.prj_gifu_univ_bus_navi.logic
 
 import com.example.prj_gifu_univ_bus_navi.model.BaseDayType
 import com.example.prj_gifu_univ_bus_navi.model.BusTrip
-import com.example.prj_gifu_univ_bus_navi.model.DestinationBusStop
 import com.example.prj_gifu_univ_bus_navi.model.OperationRule
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -12,33 +11,43 @@ import java.time.LocalTime
 class DestinationStopMatcherTest {
     @Test
     fun jrSelectedRequiresJrArrival() {
-        assertEquals(DestinationBusStop.JR_GIFU, DestinationStopMatcher.resolveArrival(trip(jr = LocalTime.of(18, 30)), DestinationBusStop.JR_GIFU)?.first)
-        assertNull(DestinationStopMatcher.resolveArrival(trip(jr = null, meitetsu = LocalTime.of(18, 35)), DestinationBusStop.JR_GIFU))
+        assertEquals("JR岐阜", DestinationStopMatcher.resolveArrival(trip(jr = LocalTime.of(18, 30)), "JR岐阜")?.first)
+        assertNull(DestinationStopMatcher.resolveArrival(trip(jr = null, meitetsu = LocalTime.of(18, 35)), "JR岐阜"))
     }
 
     @Test
     fun meitetsuSelectedUsesMeitetsuArrivalWhenPresent() {
         val result = DestinationStopMatcher.resolveArrival(
             trip(jr = LocalTime.of(18, 30), meitetsu = LocalTime.of(18, 35)),
-            DestinationBusStop.MEITETSU_GIFU,
+            "名鉄岐阜",
         )
 
-        assertEquals(DestinationBusStop.MEITETSU_GIFU, result?.first)
+        assertEquals("名鉄岐阜", result?.first)
     }
 
     @Test
     fun meitetsuSelectedFallsBackToJrArrival() {
-        val result = DestinationStopMatcher.resolveArrival(trip(jr = LocalTime.of(18, 30)), DestinationBusStop.MEITETSU_GIFU)
+        val result = DestinationStopMatcher.resolveArrival(trip(jr = LocalTime.of(18, 30)), "名鉄岐阜")
 
-        assertEquals(DestinationBusStop.JR_GIFU, result?.first)
+        assertEquals("JR岐阜", result?.first)
     }
 
     @Test
     fun meitetsuSelectedRejectsTripWithoutAnyArrival() {
-        assertNull(DestinationStopMatcher.resolveArrival(trip(), DestinationBusStop.MEITETSU_GIFU))
+        assertNull(DestinationStopMatcher.resolveArrival(trip(), "名鉄岐阜"))
     }
 
-    private fun trip(jr: LocalTime? = null, meitetsu: LocalTime? = null) = BusTrip(
+    @Test
+    fun arbitraryStopRequiresStopTime() {
+        assertEquals("徹明町", DestinationStopMatcher.resolveArrival(trip(stopTimes = mapOf("徹明町" to LocalTime.of(18, 20))), "徹明町")?.first)
+        assertNull(DestinationStopMatcher.resolveArrival(trip(stopTimes = mapOf("徹明町" to null)), "徹明町"))
+    }
+
+    private fun trip(
+        jr: LocalTime? = null,
+        meitetsu: LocalTime? = null,
+        stopTimes: Map<String, LocalTime?> = mapOf("JR岐阜" to jr, "名鉄岐阜" to meitetsu),
+    ) = BusTrip(
         id = "test",
         destination = "岐阜駅",
         baseDayType = BaseDayType.WEEKDAY,
@@ -52,5 +61,6 @@ class DestinationStopMatcherTest {
         operatingStartMonth = null,
         operatingEndMonth = null,
         mayBeArticulatedBus = false,
+        stopTimes = stopTimes,
     )
 }

@@ -6,6 +6,7 @@ import com.example.prj_gifu_univ_bus_navi.model.EdgeSourceType
 import com.example.prj_gifu_univ_bus_navi.model.NodeType
 import com.example.prj_gifu_univ_bus_navi.model.UserEdgeOverride
 import com.example.prj_gifu_univ_bus_navi.model.UserGraphNodeInput
+import com.example.prj_gifu_univ_bus_navi.model.UserTravelTimeProfile
 
 object CampusGraphBuilder {
     fun buildGraph(
@@ -13,14 +14,22 @@ object CampusGraphBuilder {
         standardEdges: List<CampusGraphEdge>,
         userNodeInputs: List<UserGraphNodeInput>,
         userEdgeOverrides: List<UserEdgeOverride>,
+        userTravelTimeProfile: UserTravelTimeProfile? = null,
+        rainModeEnabled: Boolean = false,
     ): Pair<List<CampusGraphNode>, List<CampusGraphEdge>> {
         val overrideById = userEdgeOverrides.associateBy { it.baseEdgeId }
         val overriddenEdges = standardEdges.map { edge ->
             val override = overrideById[edge.id]
+            val minutes = EdgeTravelTimeResolver.resolveMinutes(
+                edge = edge,
+                userEdgeOverrides = userEdgeOverrides,
+                userTravelTimeProfile = userTravelTimeProfile,
+                rainModeEnabled = rainModeEnabled,
+            )
             if (override == null) {
-                edge
+                edge.copy(minutes = minutes)
             } else {
-                edge.copy(minutes = override.minutes, sourceType = EdgeSourceType.USER_OVERRIDE)
+                edge.copy(minutes = minutes, sourceType = EdgeSourceType.USER_OVERRIDE)
             }
         }
 
