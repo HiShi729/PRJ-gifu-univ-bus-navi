@@ -13,9 +13,9 @@ object LocalCampusGraphData {
         CampusGraphNode("university_hall", "大学会館", NodeType.STANDARD, true, 35.4629, 136.7366),
         CampusGraphNode("applied_biological", "応用生物科学部", NodeType.STANDARD, true, 35.4618, 136.7354),
         CampusGraphNode("medicine", "医学部", NodeType.STANDARD, true, 35.4670, 136.7332),
-        CampusGraphNode("bus_stop_hospital", "岐阜大学病院", NodeType.BUS_STOP, false, 35.467718847, 136.732773421),
-        CampusGraphNode("bus_stop_yanagido", "柳戸橋", NodeType.BUS_STOP, false, 35.4655, 136.7340),
-        CampusGraphNode("bus_stop_university", "岐阜大学", NodeType.BUS_STOP, false, 35.462879009, 136.735648927),
+        CampusGraphNode("bus_stop_hospital", "岐阜大学病院", NodeType.BUS_STOP, false, 35.467718, 136.732805),
+        CampusGraphNode("bus_stop_yanagido", "柳戸橋", NodeType.BUS_STOP, false, 35.467137, 136.735476),
+        CampusGraphNode("bus_stop_university", "岐阜大学", NodeType.BUS_STOP, false, 35.462718, 136.736083),
         CampusGraphNode("transit_center", "経路探索用中継点", NodeType.TRANSIT, false, null, null),
     )
 

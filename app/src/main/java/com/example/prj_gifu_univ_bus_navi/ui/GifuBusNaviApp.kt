@@ -193,10 +193,6 @@ private fun SettingsScreen(viewModel: MainViewModel) {
 @Composable
 private fun MapSelectScreen(viewModel: MainViewModel) {
     val nodes = viewModel.mapSelectableNodes
-    val minLatitude = nodes.mapNotNull { it.latitude }.minOrNull() ?: 0.0
-    val maxLatitude = nodes.mapNotNull { it.latitude }.maxOrNull() ?: 1.0
-    val minLongitude = nodes.mapNotNull { it.longitude }.minOrNull() ?: 0.0
-    val maxLongitude = nodes.mapNotNull { it.longitude }.maxOrNull() ?: 1.0
 
     Column(
         modifier = Modifier
@@ -215,13 +211,17 @@ private fun MapSelectScreen(viewModel: MainViewModel) {
             val mapWidth = maxWidth
             val mapHeight = maxHeight
             nodes.forEach { node ->
-                val xRatio = normalizedRatio(node.longitude ?: minLongitude, minLongitude, maxLongitude)
-                val yRatio = 1f - normalizedRatio(node.latitude ?: minLatitude, minLatitude, maxLatitude)
+                val point = MapCoordinateProjector.project(
+                    latitude = node.latitude ?: return@forEach,
+                    longitude = node.longitude ?: return@forEach,
+                    mapWidth = mapWidth.value,
+                    mapHeight = mapHeight.value,
+                ) ?: return@forEach
                 Column(
                     modifier = Modifier
                         .offset(
-                            x = mapWidth * xRatio - 12.dp,
-                            y = mapHeight * yRatio - 12.dp,
+                            x = point.x.dp - 12.dp,
+                            y = point.y.dp - 12.dp,
                         )
                         .clickable { viewModel.selectMapNodeAndRecommend(node.id) },
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -616,11 +616,6 @@ private fun LocalTime?.formatNullable(): String = this?.format(timeFormatter) ?:
 
 private fun String.filterCoordinateChars(): String =
     filter { it.isDigit() || it == '.' || it == '-' }
-
-private fun normalizedRatio(value: Double, min: Double, max: Double): Float {
-    if (max == min) return 0.5f
-    return ((value - min) / (max - min)).toFloat().coerceIn(0f, 1f)
-}
 
 private fun Context.lastKnownLocation(): Location? {
     if (!hasLocationPermission()) {
