@@ -6,7 +6,6 @@ import com.example.prj_gifu_univ_bus_navi.model.BusStopId
 import com.example.prj_gifu_univ_bus_navi.model.BusTrip
 import com.example.prj_gifu_univ_bus_navi.model.CampusGraphEdge
 import com.example.prj_gifu_univ_bus_navi.model.CampusGraphNode
-import com.example.prj_gifu_univ_bus_navi.model.DestinationBusStop
 import com.example.prj_gifu_univ_bus_navi.model.EdgeSourceType
 import com.example.prj_gifu_univ_bus_navi.model.NodeType
 import com.example.prj_gifu_univ_bus_navi.model.OperationRule
@@ -22,23 +21,23 @@ import java.time.LocalTime
 class BusRecommendationEngineTest {
     @Test
     fun canCatchWhenArrivalEqualsDepartureWithZeroMargin() {
-        val result = recommend(safetyMargin = 0, destination = DestinationBusStop.JR_GIFU)
+        val result = recommend(safetyMargin = 0, destination = "JR岐阜")
 
         val yanagido = result.allCandidates.first { it.busStopId == BusStopId.YANAGIDO }
         assertTrue(yanagido.canCatch)
+        assertEquals(0, yanagido.remainingMinutes)
     }
 
     @Test
-    fun cannotCatchWhenSafetyMarginMakesArrivalLate() {
-        val result = recommend(safetyMargin = 1, destination = DestinationBusStop.JR_GIFU)
+    fun excludesCandidateWhenSafetyMarginMakesArrivalLate() {
+        val result = recommend(safetyMargin = 1, destination = "JR岐阜")
 
-        val yanagido = result.allCandidates.first { it.busStopId == BusStopId.YANAGIDO }
-        assertFalse(yanagido.canCatch)
+        assertFalse(result.allCandidates.any { it.busStopId == BusStopId.YANAGIDO })
     }
 
     @Test
     fun returnsMessageWhenNoCatchableCandidateExists() {
-        val result = recommend(nowTime = LocalTime.of(23, 0), safetyMargin = 0, destination = DestinationBusStop.JR_GIFU)
+        val result = recommend(nowTime = LocalTime.of(23, 0), safetyMargin = 0, destination = "JR岐阜")
 
         assertNull(result.recommendedCandidate)
         assertEquals("現在時刻以降に乗車可能な便がありません", result.message)
@@ -46,31 +45,49 @@ class BusRecommendationEngineTest {
 
     @Test
     fun meitetsuSelectionCanUseJrArrivalTrip() {
-        val result = recommend(safetyMargin = 0, destination = DestinationBusStop.MEITETSU_GIFU)
+        val result = recommend(safetyMargin = 0, destination = "名鉄岐阜")
 
         assertNotNull(result.recommendedCandidate)
-        assertEquals(DestinationBusStop.JR_GIFU, result.recommendedCandidate?.actualArrivalBusStop)
+        assertEquals("JR岐阜", result.recommendedCandidate?.actualArrivalBusStopName)
+    }
+
+    @Test
+    fun arbitraryDestinationRequiresStopTime() {
+        val result = recommend(
+            safetyMargin = 0,
+            destination = "徹明町",
+            trips = listOf(
+                trip(id = "has_stop", stopTimes = mapOf("徹明町" to LocalTime.of(18, 20))),
+                trip(id = "no_stop", stopTimes = mapOf("徹明町" to null)),
+            ),
+        )
+
+        assertTrue(result.allCandidates.all { it.tripId == "has_stop" })
     }
 
     private fun recommend(
         nowTime: LocalTime = LocalTime.of(18, 0),
         safetyMargin: Int,
-        destination: DestinationBusStop,
+        destination: String,
+        trips: List<BusTrip> = listOf(trip()),
     ) = BusRecommendationEngine.recommend(
         currentNodeId = "start",
         nowDate = LocalDate.of(2026, 5, 7),
         nowTime = nowTime,
         safetyMarginMinutes = safetyMargin,
-        selectedDestination = destination,
-        busTrips = listOf(trip()),
+        selectedDestinationStopName = destination,
+        busTrips = trips,
         busStops = busStops(),
         graphNodes = nodes(),
         graphEdges = edges(),
         schoolHolidays = emptyList(),
     )
 
-    private fun trip() = BusTrip(
-        id = "test",
+    private fun trip(
+        id: String = "test",
+        stopTimes: Map<String, LocalTime?> = mapOf("JR岐阜" to LocalTime.of(18, 35), "名鉄岐阜" to null),
+    ) = BusTrip(
+        id = id,
         destination = "JR岐阜駅",
         baseDayType = BaseDayType.WEEKDAY,
         routeName = "テスト",
@@ -83,6 +100,7 @@ class BusRecommendationEngineTest {
         operatingStartMonth = null,
         operatingEndMonth = null,
         mayBeArticulatedBus = false,
+        stopTimes = stopTimes,
     )
 
     private fun busStops() = listOf(

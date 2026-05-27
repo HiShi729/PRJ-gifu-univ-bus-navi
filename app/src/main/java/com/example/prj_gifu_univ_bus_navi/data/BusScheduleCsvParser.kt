@@ -6,13 +6,30 @@ import com.example.prj_gifu_univ_bus_navi.model.OperationRule
 import java.time.LocalTime
 
 object BusScheduleCsvParser {
+    private val metaColumns = setOf(
+        "busNo.",
+        "種類",
+        "路線名",
+        "routeName",
+        "option",
+        "id",
+        "baseDayType",
+        "operationRule",
+        "operatingStartMonth",
+        "operatingEndMonth",
+        "mayBeArticulatedBus",
+    )
+    private val boardingStopNames = setOf("岐阜大学病院", "柳戸橋", "岐阜大学")
+
     fun parse(csvText: String): List<BusTrip> {
         val rows = parseRows(csvText).filter { row -> row.any { it.isNotBlank() } }
         if (rows.isEmpty()) return emptyList()
         val header = rows.first().map { it.removePrefix("\uFEFF") }
+        val stopColumns = header.filterNot { it in metaColumns }
         val records = rows.drop(1)
         return records.map { row ->
             val values = header.mapIndexed { index, name -> name to row.getOrElse(index) { "" } }.toMap()
+            val stopTimes = stopColumns.associateWith { stopName -> parseTimeOrNull(values.value(stopName)) }
             BusTrip(
                 id = values.value("id").ifBlank { values.value("busNo.") },
                 destination = buildDestination(values),
@@ -27,7 +44,23 @@ object BusScheduleCsvParser {
                 operatingStartMonth = values.value("operatingStartMonth").toIntOrNull(),
                 operatingEndMonth = values.value("operatingEndMonth").toIntOrNull(),
                 mayBeArticulatedBus = values.value("mayBeArticulatedBus").equals("true", ignoreCase = true),
+                stopTimes = stopTimes,
             )
+        }
+    }
+
+    fun destinationStopNames(csvText: String): List<String> {
+        val rows = parseRows(csvText).filter { row -> row.any { it.isNotBlank() } }
+        if (rows.isEmpty()) return emptyList()
+        val header = rows.first().map { it.removePrefix("\uFEFF") }
+        val records = rows.drop(1)
+        return header.filter { column ->
+            column !in metaColumns &&
+                column !in boardingStopNames &&
+                records.any { row ->
+                    val values = header.mapIndexed { index, name -> name to row.getOrElse(index) { "" } }.toMap()
+                    parseTimeOrNull(values.value(column)) != null
+                }
         }
     }
 

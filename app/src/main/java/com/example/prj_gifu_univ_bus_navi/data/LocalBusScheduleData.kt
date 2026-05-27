@@ -8,4 +8,9 @@ object LocalBusScheduleData {
         context.assets.open("bus_schedule.csv").bufferedReader().use { reader ->
             BusScheduleCsvParser.parse(reader.readText())
         }
+
+    fun loadDestinationStopNames(context: Context): List<String> =
+        context.assets.open("bus_schedule.csv").bufferedReader().use { reader ->
+            BusScheduleCsvParser.destinationStopNames(reader.readText())
+        }
 }

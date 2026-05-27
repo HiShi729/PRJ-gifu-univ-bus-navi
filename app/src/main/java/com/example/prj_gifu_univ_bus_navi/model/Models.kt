@@ -61,6 +61,7 @@ data class BusTrip(
     val operatingStartMonth: Int?,
     val operatingEndMonth: Int?,
     val mayBeArticulatedBus: Boolean,
+    val stopTimes: Map<String, LocalTime?> = emptyMap(),
 )
 
 data class BusStop(
@@ -128,8 +129,8 @@ data class BusStopCandidate(
     val remainingMinutes: Int,
     val canCatch: Boolean,
     val routeName: String,
-    val destinationBusStop: DestinationBusStop,
-    val actualArrivalBusStop: DestinationBusStop,
+    val destinationBusStopName: String,
+    val actualArrivalBusStopName: String,
     val destinationArrivalTime: LocalTime?,
     val mayBeArticulatedBus: Boolean,
     val reason: String,

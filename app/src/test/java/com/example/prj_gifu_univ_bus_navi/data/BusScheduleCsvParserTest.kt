@@ -20,8 +20,8 @@ class BusScheduleCsvParserTest {
     @Test
     fun parsesEnumsAndBoolean() {
         val csv = """
-            id,岐阜大学病院,柳戸橋,岐阜大学,名鉄岐阜,JR岐阜,路線名,baseDayType,operationRule,operatingStartMonth,operatingEndMonth,mayBeArticulatedBus
-            test,6:45,6:46,6:48,-,7:15,C,WEEKDAY,SCHOOL_HOLIDAY_EXCLUDED,,,TRUE
+            id,岐阜大学病院,柳戸橋,岐阜大学,名鉄岐阜,JR岐阜,徹明町,全便なし,路線名,baseDayType,operationRule,operatingStartMonth,operatingEndMonth,mayBeArticulatedBus
+            test,6:45,6:46,6:48,-,7:15,7:00,-,C,WEEKDAY,SCHOOL_HOLIDAY_EXCLUDED,,,TRUE
         """.trimIndent()
 
         val trip = BusScheduleCsvParser.parse(csv).single()
@@ -31,6 +31,28 @@ class BusScheduleCsvParserTest {
         assertEquals(LocalTime.of(7, 15), trip.jrGifuArrivalTime)
         assertNull(trip.meitetsuGifuArrivalTime)
         assertEquals(true, trip.mayBeArticulatedBus)
+        assertEquals(LocalTime.of(7, 0), trip.stopTimes["徹明町"])
+        assertNull(trip.stopTimes["全便なし"])
+        assertFalse("id" in trip.stopTimes)
+    }
+
+    @Test
+    fun generatesDestinationStopNamesFromValidStopColumns() {
+        val csv = """
+            id,岐阜大学病院,柳戸橋,岐阜大学,JR岐阜,名鉄岐阜,徹明町,全便なし,baseDayType,operationRule,mayBeArticulatedBus
+            test,6:45,6:46,6:48,7:15,-,7:00,-,WEEKDAY,NONE,false
+            test2,7:45,7:46,7:48,-,8:15,-,,WEEKDAY,NONE,false
+        """.trimIndent()
+
+        val stops = BusScheduleCsvParser.destinationStopNames(csv)
+
+        assertFalse("岐阜大学病院" in stops)
+        assertFalse("柳戸橋" in stops)
+        assertFalse("岐阜大学" in stops)
+        assertFalse("全便なし" in stops)
+        assertEquals(true, "JR岐阜" in stops)
+        assertEquals(true, "名鉄岐阜" in stops)
+        assertEquals(true, "徹明町" in stops)
     }
 
     @Test

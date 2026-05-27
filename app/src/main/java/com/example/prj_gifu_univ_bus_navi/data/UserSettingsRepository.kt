@@ -6,7 +6,6 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import com.example.prj_gifu_univ_bus_navi.model.DestinationBusStop
 import com.example.prj_gifu_univ_bus_navi.model.UserEdgeOverride
 import com.example.prj_gifu_univ_bus_navi.model.UserGraphNodeInput
 import com.example.prj_gifu_univ_bus_navi.model.UserTravelTimeProfile
@@ -20,7 +19,7 @@ import kotlinx.serialization.json.Json
 private val Context.userSettingsDataStore by preferencesDataStore(name = "user_settings")
 
 data class UserSettingsState(
-    val selectedDestination: DestinationBusStop = DestinationBusStop.JR_GIFU,
+    val selectedDestinationStopName: String = "JR岐阜",
     val safetyMarginMinutes: Int = 1,
     val rainModeEnabled: Boolean = false,
     val favoriteStartNodeId: String? = null,
@@ -39,7 +38,14 @@ class UserSettingsRepository(private val context: Context) {
         .catch { emit(androidx.datastore.preferences.core.emptyPreferences()) }
         .map { preferences ->
             UserSettingsState(
-                selectedDestination = preferences[Keys.selectedDestination]?.let { runCatching { DestinationBusStop.valueOf(it) }.getOrNull() } ?: DestinationBusStop.JR_GIFU,
+                selectedDestinationStopName = preferences[Keys.selectedDestinationStopName]
+                    ?: preferences[Keys.selectedDestination]?.let { legacy ->
+                        when (legacy) {
+                            "MEITETSU_GIFU" -> "名鉄岐阜"
+                            else -> "JR岐阜"
+                        }
+                    }
+                    ?: "JR岐阜",
                 safetyMarginMinutes = preferences[Keys.safetyMarginMinutes] ?: 1,
                 rainModeEnabled = preferences[Keys.rainModeEnabled] ?: false,
                 favoriteStartNodeId = preferences[Keys.favoriteStartNodeId],
@@ -49,8 +55,8 @@ class UserSettingsRepository(private val context: Context) {
             )
         }
 
-    suspend fun saveSelectedDestination(destination: DestinationBusStop) {
-        context.userSettingsDataStore.edit { it[Keys.selectedDestination] = destination.name }
+    suspend fun saveSelectedDestinationStopName(stopName: String) {
+        context.userSettingsDataStore.edit { it[Keys.selectedDestinationStopName] = stopName }
     }
 
     suspend fun saveSafetyMarginMinutes(minutes: Int) {
@@ -89,6 +95,7 @@ class UserSettingsRepository(private val context: Context) {
 
     private object Keys {
         val selectedDestination = stringPreferencesKey("selected_destination")
+        val selectedDestinationStopName = stringPreferencesKey("selected_destination_stop_name")
         val safetyMarginMinutes = intPreferencesKey("safety_margin_minutes")
         val rainModeEnabled = booleanPreferencesKey("rain_mode_enabled")
         val favoriteStartNodeId = stringPreferencesKey("favorite_start_node_id")

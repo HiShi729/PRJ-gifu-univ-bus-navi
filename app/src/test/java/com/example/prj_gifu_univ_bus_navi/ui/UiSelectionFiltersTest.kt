@@ -3,7 +3,6 @@ package com.example.prj_gifu_univ_bus_navi.ui
 import com.example.prj_gifu_univ_bus_navi.model.BusStopCandidate
 import com.example.prj_gifu_univ_bus_navi.model.BusStopId
 import com.example.prj_gifu_univ_bus_navi.model.CampusGraphNode
-import com.example.prj_gifu_univ_bus_navi.model.DestinationBusStop
 import com.example.prj_gifu_univ_bus_navi.model.NodeType
 import com.example.prj_gifu_univ_bus_navi.model.UserGraphNodeInput
 import com.example.prj_gifu_univ_bus_navi.model.UserNodeCoordinateSource
@@ -139,8 +138,8 @@ class UiSelectionFiltersTest {
         remainingMinutes = 5,
         canCatch = true,
         routeName = "テスト",
-        destinationBusStop = DestinationBusStop.JR_GIFU,
-        actualArrivalBusStop = DestinationBusStop.JR_GIFU,
+        destinationBusStopName = "JR岐阜",
+        actualArrivalBusStopName = "JR岐阜",
         destinationArrivalTime = departureTime.plusMinutes(30),
         mayBeArticulatedBus = false,
         reason = "テスト",

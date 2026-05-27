@@ -6,7 +6,6 @@ import com.example.prj_gifu_univ_bus_navi.model.BusStopId
 import com.example.prj_gifu_univ_bus_navi.model.BusTrip
 import com.example.prj_gifu_univ_bus_navi.model.CampusGraphEdge
 import com.example.prj_gifu_univ_bus_navi.model.CampusGraphNode
-import com.example.prj_gifu_univ_bus_navi.model.DestinationBusStop
 import com.example.prj_gifu_univ_bus_navi.model.RecommendationResult
 import java.time.Duration
 import java.time.LocalDate
@@ -20,7 +19,7 @@ object BusRecommendationEngine {
         nowDate: LocalDate,
         nowTime: LocalTime,
         safetyMarginMinutes: Int,
-        selectedDestination: DestinationBusStop,
+        selectedDestinationStopName: String,
         busTrips: List<BusTrip>,
         busStops: List<BusStop>,
         graphNodes: List<CampusGraphNode>,
@@ -34,7 +33,7 @@ object BusRecommendationEngine {
         }
 
         val candidates = availableTrips.flatMap { trip ->
-            val arrival = DestinationStopMatcher.resolveArrival(trip, selectedDestination) ?: return@flatMap emptyList()
+            val arrival = DestinationStopMatcher.resolveArrival(trip, selectedDestinationStopName) ?: return@flatMap emptyList()
             busStops.mapNotNull { busStop ->
                 val path = pathsByStop[busStop] ?: return@mapNotNull null
                 val departureTime = trip.departureTimeAt(busStop.id) ?: return@mapNotNull null
@@ -45,14 +44,13 @@ object BusRecommendationEngine {
                     travelMinutes = path.totalMinutes,
                     nowTime = nowTime,
                     safetyMarginMinutes = safetyMarginMinutes,
-                    selectedDestination = selectedDestination,
+                    selectedDestinationStopName = selectedDestinationStopName,
                     resolvedArrival = arrival,
                 )
             }
         }.sortedWith(compareBy<BusStopCandidate> { it.departureTime }.thenBy { it.travelMinutes })
 
-        val catchable = candidates.filter { it.canCatch }
-        val recommended = catchable.minWithOrNull(compareBy<BusStopCandidate> { it.departureTime }.thenBy { it.travelMinutes })
+        val recommended = candidates.minWithOrNull(compareBy<BusStopCandidate> { it.departureTime }.thenBy { it.travelMinutes })
 
         return RecommendationResult(
             recommendedCandidate = recommended,
@@ -68,13 +66,14 @@ object BusRecommendationEngine {
         travelMinutes: Int,
         nowTime: LocalTime,
         safetyMarginMinutes: Int,
-        selectedDestination: DestinationBusStop,
-        resolvedArrival: Pair<DestinationBusStop, LocalTime>,
-    ): BusStopCandidate {
+        selectedDestinationStopName: String,
+        resolvedArrival: Pair<String, LocalTime>,
+    ): BusStopCandidate? {
         val arrivalAtBusStop = nowTime.plusMinutes(travelMinutes.toLong())
         val latestArrivalWithMargin = arrivalAtBusStop.plusMinutes(safetyMarginMinutes.toLong())
         val canCatch = !latestArrivalWithMargin.isAfter(departureTime)
-        val remainingMinutes = Duration.between(arrivalAtBusStop, departureTime).toMinutes().toInt()
+        val remainingMinutes = Duration.between(latestArrivalWithMargin, departureTime).toMinutes().toInt()
+        if (remainingMinutes < 0 || !canCatch) return null
         return BusStopCandidate(
             busStopId = busStop.id,
             busStopName = busStop.name,
@@ -85,8 +84,8 @@ object BusRecommendationEngine {
             remainingMinutes = remainingMinutes,
             canCatch = canCatch,
             routeName = trip.routeName,
-            destinationBusStop = selectedDestination,
-            actualArrivalBusStop = resolvedArrival.first,
+            destinationBusStopName = selectedDestinationStopName,
+            actualArrivalBusStopName = resolvedArrival.first,
             destinationArrivalTime = resolvedArrival.second,
             mayBeArticulatedBus = trip.mayBeArticulatedBus,
             reason = if (canCatch) {

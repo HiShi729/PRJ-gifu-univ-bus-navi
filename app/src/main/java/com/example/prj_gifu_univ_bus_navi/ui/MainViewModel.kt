@@ -9,12 +9,12 @@ import com.example.prj_gifu_univ_bus_navi.data.LocalBusStopData
 import com.example.prj_gifu_univ_bus_navi.data.LocalCampusGraphData
 import com.example.prj_gifu_univ_bus_navi.data.LocalSchoolHolidayData
 import com.example.prj_gifu_univ_bus_navi.data.UserSettingsRepository
+import com.example.prj_gifu_univ_bus_navi.data.WeatherRepository
 import com.example.prj_gifu_univ_bus_navi.logic.BusRecommendationEngine
 import com.example.prj_gifu_univ_bus_navi.logic.CampusGraphBuilder
 import com.example.prj_gifu_univ_bus_navi.model.BusTrip
 import com.example.prj_gifu_univ_bus_navi.model.CampusGraphEdge
 import com.example.prj_gifu_univ_bus_navi.model.CampusGraphNode
-import com.example.prj_gifu_univ_bus_navi.model.DestinationBusStop
 import com.example.prj_gifu_univ_bus_navi.model.RecommendationResult
 import com.example.prj_gifu_univ_bus_navi.model.UserEdgeOverride
 import com.example.prj_gifu_univ_bus_navi.model.UserGraphNodeInput
@@ -27,7 +27,6 @@ enum class AppScreen {
     HOME,
     RESULT,
     SETTINGS,
-    MAP_SELECT,
     ADD_NODE,
     EDIT_TRAVEL_TIME,
     TRAVEL_TIME_PROFILE,
@@ -49,7 +48,7 @@ class MainViewModel : ViewModel() {
         private set
     var selectedCurrentNodeId by mutableStateOf(LocalCampusGraphData.nodes.first { it.isSelectableAsStart }.id)
         private set
-    var selectedDestination by mutableStateOf(DestinationBusStop.JR_GIFU)
+    var selectedDestinationStopName by mutableStateOf("JR岐阜")
         private set
     var selectedSafetyMargin by mutableStateOf(safetyOptions[1])
         private set
@@ -71,8 +70,14 @@ class MainViewModel : ViewModel() {
         private set
     var favoriteStartNodeId by mutableStateOf<String?>(null)
         private set
+    var rainForecastStatus by mutableStateOf("天気予報を確認中")
+        private set
     private var busTrips by mutableStateOf<List<BusTrip>>(emptyList())
+    var destinationStopNames by mutableStateOf<List<String>>(listOf("JR岐阜", "名鉄岐阜"))
+        private set
     private var settingsRepository: UserSettingsRepository? = null
+    private var weatherRepository: WeatherRepository? = null
+    private var hasRequestedWeather = false
 
     val safetyMarginOptions: List<SafetyMarginOption> = safetyOptions
 
@@ -108,13 +113,22 @@ class MainViewModel : ViewModel() {
     val favoriteStartNodeName: String?
         get() = favoriteStartNodeId?.let { id -> graphNodes.firstOrNull { it.id == id }?.name }
 
-    fun loadInitialData(busTrips: List<BusTrip>, repository: UserSettingsRepository) {
+    fun loadInitialData(
+        busTrips: List<BusTrip>,
+        destinationStopNames: List<String>,
+        repository: UserSettingsRepository,
+        weatherRepository: WeatherRepository,
+    ) {
         this.busTrips = busTrips
+        this.destinationStopNames = destinationStopNames.ifEmpty { listOf("JR岐阜", "名鉄岐阜") }
         if (settingsRepository != null) return
         settingsRepository = repository
+        this.weatherRepository = weatherRepository
         viewModelScope.launch {
             repository.settingsFlow.collect { settings ->
-                selectedDestination = settings.selectedDestination
+                selectedDestinationStopName = settings.selectedDestinationStopName
+                    .takeIf { it in this@MainViewModel.destinationStopNames }
+                    ?: "JR岐阜"
                 selectedSafetyMargin = safetyOptions.firstOrNull { it.minutes == settings.safetyMarginMinutes } ?: selectedSafetyMargin
                 rainModeEnabled = settings.rainModeEnabled
                 userNodeInputs = settings.userNodeInputs
@@ -126,6 +140,7 @@ class MainViewModel : ViewModel() {
                     selectedCurrentNodeId = preferred
                     selectedMapNodeId = preferred
                 }
+                requestRainForecastOnce()
             }
         }
     }
@@ -135,9 +150,9 @@ class MainViewModel : ViewModel() {
         selectedMapNodeId = nodeId
     }
 
-    fun selectDestination(destination: DestinationBusStop) {
-        selectedDestination = destination
-        viewModelScope.launch { settingsRepository?.saveSelectedDestination(destination) }
+    fun selectDestinationStop(stopName: String) {
+        selectedDestinationStopName = stopName
+        viewModelScope.launch { settingsRepository?.saveSelectedDestinationStopName(stopName) }
     }
 
     fun selectSafetyMargin(option: SafetyMarginOption) {
@@ -152,7 +167,7 @@ class MainViewModel : ViewModel() {
             nowDate = currentDate,
             nowTime = currentTime,
             safetyMarginMinutes = selectedSafetyMargin.minutes,
-            selectedDestination = selectedDestination,
+            selectedDestinationStopName = selectedDestinationStopName,
             busTrips = busTrips,
             busStops = LocalBusStopData.busStops,
             graphNodes = graphNodes,
@@ -201,12 +216,13 @@ class MainViewModel : ViewModel() {
 
     fun updateRainModeEnabled(enabled: Boolean) {
         rainModeEnabled = enabled
+        rainForecastStatus = if (enabled) "手動ON" else "手動OFF"
         viewModelScope.launch { settingsRepository?.saveRainModeEnabled(enabled) }
     }
 
-    fun saveFavoriteStartNode() {
-        favoriteStartNodeId = selectedCurrentNodeId
-        viewModelScope.launch { settingsRepository?.saveFavoriteStartNodeId(selectedCurrentNodeId) }
+    fun selectFavoriteStartNode(nodeId: String?) {
+        favoriteStartNodeId = nodeId
+        viewModelScope.launch { settingsRepository?.saveFavoriteStartNodeId(nodeId) }
     }
 
     fun saveTravelTimeProfile(edgeId: String, standardMinutes: Int, measuredMinutes: Int) {
@@ -232,5 +248,25 @@ class MainViewModel : ViewModel() {
     fun refreshClock() {
         currentDate = LocalDate.now()
         currentTime = LocalTime.now().withSecond(0).withNano(0)
+    }
+
+    private fun requestRainForecastOnce() {
+        if (hasRequestedWeather) return
+        hasRequestedWeather = true
+        viewModelScope.launch {
+            when (weatherRepository?.isRainExpected()) {
+                true -> {
+                    rainModeEnabled = true
+                    rainForecastStatus = "自動: 雨予報のためON"
+                    settingsRepository?.saveRainModeEnabled(true)
+                }
+                false -> {
+                    rainForecastStatus = "自動: 雨予報なし"
+                }
+                null -> {
+                    rainForecastStatus = "天気予報を取得できませんでした"
+                }
+            }
+        }
     }
 }
