@@ -1,6 +1,7 @@
 package com.example.prj_gifu_univ_bus_navi.logic
 
 import com.example.prj_gifu_univ_bus_navi.data.LocalHolidayData
+import com.example.prj_gifu_univ_bus_navi.data.LocalAcademicCalendarData
 import com.example.prj_gifu_univ_bus_navi.model.BaseDayType
 import com.example.prj_gifu_univ_bus_navi.model.ServiceDateContext
 import java.time.DayOfWeek
@@ -16,7 +17,7 @@ object ServiceCalendar {
         return ServiceDateContext(
             date = date,
             baseDayType = baseDayType,
-            isSchoolHoliday = date in schoolHolidays,
+            isSchoolHoliday = LocalAcademicCalendarData.isSchoolHoliday(date),
             month = date.monthValue,
         )
     }
