@@ -4,49 +4,6 @@ import java.time.LocalDate
 import java.time.LocalTime
 import kotlinx.serialization.Serializable
 
-enum class BaseDayType {
-    WEEKDAY,
-    WEEKEND_HOLIDAY,
-}
-
-enum class OperationRule {
-    NONE,
-    SCHOOL_HOLIDAY_EXCLUDED,
-    SCHOOL_HOLIDAY_ONLY,
-    LIMITED_PERIOD,
-    LIMITED_PERIOD_AND_SCHOOL_HOLIDAY_EXCLUDED,
-}
-
-enum class NodeType {
-    STANDARD,
-    USER_ADDED,
-    BUS_STOP,
-    TRANSIT,
-}
-
-enum class EdgeSourceType {
-    STANDARD,
-    USER_ADDED,
-    USER_OVERRIDE,
-}
-
-enum class UserNodeCoordinateSource {
-    NONE,
-    GPS,
-    MANUAL,
-}
-
-enum class BusStopId {
-    GIFU_UNIV_HOSPITAL,
-    YANAGIDO,
-    GIFU_UNIV,
-}
-
-enum class DestinationBusStop {
-    JR_GIFU,
-    MEITETSU_GIFU,
-}
-
 data class BusTrip(
     val id: String,
     val destination: String,
