@@ -128,8 +128,17 @@ public class MainActivity extends AppCompatActivity {
 
     private void showHome() {
         viewModel.navigate(AppScreen.HOME);
-        LinearLayout content = baseContent();
-        content.addView(screenTitle("岐大バスナビ"));
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setBackgroundColor(Color.WHITE);
+
+        // 1. Header
+        layout.addView(renderHomeHeader());
+
+        // Content Area (Scrollable)
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(20), dp(16), dp(20), dp(32));
 
         CampusMapView mapView = new CampusMapView(this);
         mapView.setNodes(viewModel.getMapSelectableNodes());
@@ -161,13 +170,44 @@ public class MainActivity extends AppCompatActivity {
             showResult();
         });
         content.addView(search);
-        Button settings = secondaryButton("設定");
+
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setFillViewport(true);
+        scrollView.addView(content);
+        layout.addView(scrollView);
+
+        root.removeAllViews();
+        root.addView(layout);
+    }
+
+    private View renderHomeHeader() {
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setPadding(dp(20), dp(12), dp(20), dp(12));
+        header.setBackgroundColor(Color.WHITE);
+        header.setElevation(dp(2));
+        header.setGravity(android.view.Gravity.CENTER_VERTICAL);
+
+        TextView titleView = new TextView(this);
+        titleView.setText("岐大バスナビ");
+        titleView.setTextSize(20);
+        titleView.setTypeface(Typeface.DEFAULT_BOLD);
+        titleView.setTextColor(Color.rgb(38, 50, 56));
+        titleView.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+
+        TextView settings = new TextView(this);
+        settings.setText("⚙設定");
+        settings.setTextSize(16);
+        settings.setTextColor(Color.rgb(2, 136, 209));
+        settings.setPadding(dp(8), dp(8), dp(8), dp(8));
         settings.setOnClickListener(v -> {
             viewModel.navigate(AppScreen.SETTINGS);
             showSettings();
         });
-        content.addView(settings);
-        setContent(content);
+
+        header.addView(titleView);
+        header.addView(settings);
+        return header;
     }
 
     private void showSettings() {
