@@ -8,16 +8,28 @@ import java.util.Objects;
 public final class RecommendationResult {
     private final BusStopCandidate recommendedCandidate;
     private final List<BusStopCandidate> allCandidates;
+    private final List<BusStopCandidate> summaryCandidates;
     private final String message;
 
     public RecommendationResult(BusStopCandidate recommendedCandidate, List<BusStopCandidate> allCandidates, String message) {
+        this(recommendedCandidate, allCandidates, allCandidates, message);
+    }
+
+    public RecommendationResult(
+        BusStopCandidate recommendedCandidate,
+        List<BusStopCandidate> allCandidates,
+        List<BusStopCandidate> summaryCandidates,
+        String message
+    ) {
         this.recommendedCandidate = recommendedCandidate;
         this.allCandidates = Collections.unmodifiableList(new ArrayList<>(allCandidates));
+        this.summaryCandidates = Collections.unmodifiableList(new ArrayList<>(summaryCandidates));
         this.message = message;
     }
 
     public BusStopCandidate getRecommendedCandidate() { return recommendedCandidate; }
     public List<BusStopCandidate> getAllCandidates() { return allCandidates; }
+    public List<BusStopCandidate> getSummaryCandidates() { return summaryCandidates; }
     public String getMessage() { return message; }
 
     @Override
@@ -27,12 +39,13 @@ public final class RecommendationResult {
         RecommendationResult that = (RecommendationResult) o;
         return Objects.equals(recommendedCandidate, that.recommendedCandidate) &&
             Objects.equals(allCandidates, that.allCandidates) &&
+            Objects.equals(summaryCandidates, that.summaryCandidates) &&
             Objects.equals(message, that.message);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(recommendedCandidate, allCandidates, message);
+        return Objects.hash(recommendedCandidate, allCandidates, summaryCandidates, message);
     }
 
     @Override
@@ -40,6 +53,7 @@ public final class RecommendationResult {
         return "RecommendationResult{" +
             "recommendedCandidate=" + recommendedCandidate +
             ", allCandidates=" + allCandidates +
+            ", summaryCandidates=" + summaryCandidates +
             ", message='" + message + '\'' +
             '}';
     }

@@ -296,7 +296,9 @@ public class MainActivity extends AppCompatActivity {
 
         // Data Preparation
         List<BusStop> allStops = LocalBusStopData.getBusStops();
-        List<BusStopCandidate> allCandidates = result.getAllCandidates();
+        List<BusStopCandidate> allCandidates = result == null ? new ArrayList<>() : result.getAllCandidates();
+        List<BusStopCandidate> summaryCandidates = result == null ? new ArrayList<>() : result.getSummaryCandidates();
+        boolean hasRideCandidates = result != null && !allCandidates.isEmpty() && result.getRecommendedCandidate() != null;
 
         // 1. Header with Start Node Name
         LinearLayout layout = new LinearLayout(this);
@@ -311,9 +313,26 @@ public class MainActivity extends AppCompatActivity {
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(dp(20), dp(16), dp(20), dp(32));
 
-        if (result == null || result.getRecommendedCandidate() == null) {
-            content.addView(messageLabel("現在時刻以降に乗車可能な便がありません"));
-        } else {
+        // Summary Data: Earliest per BusStopId
+        Map<BusStopId, BusStopCandidate> summaryBest = new HashMap<>();
+        for (BusStopCandidate c : summaryCandidates) {
+            BusStopCandidate currentBest = summaryBest.get(c.getBusStopId());
+            if (currentBest == null || isEarlierSummaryCandidate(c, currentBest)) {
+                summaryBest.put(c.getBusStopId(), c);
+            }
+        }
+
+        // 2. Summary Section
+        content.addView(sectionLabel("目的地候補別の最短到着"));
+        if (!hasRideCandidates) {
+            String message = result == null || result.getMessage() == null
+                ? "現在時刻以降に乗車可能な便がありません"
+                : result.getMessage();
+            content.addView(messageLabel(message));
+        }
+        content.addView(renderBusTable(summaryBest, allStops, true, null, null));
+
+        if (hasRideCandidates) {
             // Group Candidates by Trip for "Candidates" and "Options"
             List<String> tripIdOrder = new ArrayList<>();
             Map<String, Map<BusStopId, BusStopCandidate>> tripStopMap = new HashMap<>();
@@ -327,19 +346,6 @@ public class MainActivity extends AppCompatActivity {
                 }
                 tripStopMap.get(c.getTripId()).put(c.getBusStopId(), c);
             }
-
-            // Summary Data: Earliest per BusStopId
-            Map<BusStopId, BusStopCandidate> summaryBest = new HashMap<>();
-            for (BusStopCandidate c : allCandidates) {
-                BusStopCandidate currentBest = summaryBest.get(c.getBusStopId());
-                if (currentBest == null || c.getDestinationArrivalTime().compareTo(currentBest.getDestinationArrivalTime()) < 0) {
-                    summaryBest.put(c.getBusStopId(), c);
-                }
-            }
-
-            // 2. Summary Section
-            content.addView(sectionLabel("目的地候補別の最短到着"));
-            content.addView(renderBusTable(summaryBest, allStops, true, null, null));
 
             // 3. Recommended Section
             BusStopCandidate rec = result.getRecommendedCandidate();
@@ -362,6 +368,15 @@ public class MainActivity extends AppCompatActivity {
 
         root.removeAllViews();
         root.addView(layout);
+    }
+
+    private boolean isEarlierSummaryCandidate(BusStopCandidate candidate, BusStopCandidate currentBest) {
+        LocalTime candidateArrival = candidate.getDestinationArrivalTime();
+        LocalTime currentArrival = currentBest.getDestinationArrivalTime();
+        if (candidateArrival == null || currentArrival == null) {
+            return candidate.getArrivalTimeAtBusStop().compareTo(currentBest.getArrivalTimeAtBusStop()) < 0;
+        }
+        return candidateArrival.compareTo(currentArrival) < 0;
     }
 
     private View renderResultHeader(String title) {
@@ -523,11 +538,12 @@ public class MainActivity extends AppCompatActivity {
             case "destination": time = c.getDestinationArrivalTime(); break;
             default: return "--:--";
         }
+        if (time == null) return "--:--";
         return time.format(DateTimeFormatter.ofPattern("HH:mm"));
     }
 
     private String formatWalk(BusStopCandidate c) {
-        if (c == null) return "--:--";
+        if (c == null) return "--";
         return c.getTravelMinutes() + "分";
     }
 
