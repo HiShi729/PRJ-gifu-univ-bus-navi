@@ -84,6 +84,16 @@ public class MainViewModel {
 
     public AppScreen getCurrentScreen() { return currentScreen; }
     public String getSelectedCurrentNodeId() { return selectedCurrentNodeId; }
+
+    public String getSelectedCurrentNodeName() {
+        for (CampusGraphNode node : getGraphNodes()) {
+            if (node.getId().equals(selectedCurrentNodeId)) {
+                return node.getName();
+            }
+        }
+        return "現在地";
+    }
+
     public String getSelectedDestinationStopName() { return selectedDestinationStopName; }
     public SafetyMarginOption getSelectedSafetyMargin() { return selectedSafetyMargin; }
     public RecommendationResult getRecommendationResult() { return recommendationResult; }
