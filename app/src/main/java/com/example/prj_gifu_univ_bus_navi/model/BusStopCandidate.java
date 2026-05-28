@@ -17,6 +17,7 @@ public final class BusStopCandidate {
     private final String actualArrivalBusStopName;
     private final LocalTime destinationArrivalTime;
     private final boolean mayBeArticulatedBus;
+    private final String optionLabel;
     private final String reason;
 
     public BusStopCandidate(
@@ -33,6 +34,7 @@ public final class BusStopCandidate {
         String actualArrivalBusStopName,
         LocalTime destinationArrivalTime,
         boolean mayBeArticulatedBus,
+        String optionLabel,
         String reason
     ) {
         this.busStopId = busStopId;
@@ -48,6 +50,7 @@ public final class BusStopCandidate {
         this.actualArrivalBusStopName = actualArrivalBusStopName;
         this.destinationArrivalTime = destinationArrivalTime;
         this.mayBeArticulatedBus = mayBeArticulatedBus;
+        this.optionLabel = optionLabel;
         this.reason = reason;
     }
 
@@ -66,6 +69,7 @@ public final class BusStopCandidate {
     public LocalTime getDestinationArrivalTime() { return destinationArrivalTime; }
     public boolean isMayBeArticulatedBus() { return mayBeArticulatedBus; }
     public boolean getMayBeArticulatedBus() { return mayBeArticulatedBus; }
+    public String getOptionLabel() { return optionLabel; }
     public String getReason() { return reason; }
 
     @Override
@@ -86,6 +90,7 @@ public final class BusStopCandidate {
             Objects.equals(destinationBusStopName, that.destinationBusStopName) &&
             Objects.equals(actualArrivalBusStopName, that.actualArrivalBusStopName) &&
             Objects.equals(destinationArrivalTime, that.destinationArrivalTime) &&
+            Objects.equals(optionLabel, that.optionLabel) &&
             Objects.equals(reason, that.reason);
     }
 
@@ -93,7 +98,7 @@ public final class BusStopCandidate {
     public int hashCode() {
         return Objects.hash(busStopId, busStopName, tripId, departureTime, travelMinutes, arrivalTimeAtBusStop,
             remainingMinutes, canCatch, routeName, destinationBusStopName, actualArrivalBusStopName,
-            destinationArrivalTime, mayBeArticulatedBus, reason);
+            destinationArrivalTime, mayBeArticulatedBus, optionLabel, reason);
     }
 
     @Override
@@ -112,6 +117,7 @@ public final class BusStopCandidate {
             ", actualArrivalBusStopName='" + actualArrivalBusStopName + '\'' +
             ", destinationArrivalTime=" + destinationArrivalTime +
             ", mayBeArticulatedBus=" + mayBeArticulatedBus +
+            ", optionLabel='" + optionLabel + '\'' +
             ", reason='" + reason + '\'' +
             '}';
     }

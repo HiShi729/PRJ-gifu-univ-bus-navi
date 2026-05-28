@@ -117,6 +117,26 @@ public class JavaMigrationRegressionTest {
     }
 
     @Test
+    public void recommendationKeepsSummaryWhenNoRideCandidatesExist() {
+        RecommendationResult result = recommend(LocalTime.of(23, 0), 0, "JR岐阜", Collections.singletonList(trip()));
+
+        assertNull(result.getRecommendedCandidate());
+        assertEquals(0, result.getAllCandidates().size());
+        assertEquals("現在時刻以降に乗車可能な便がありません", result.getMessage());
+        assertEquals(3, result.getSummaryCandidates().size());
+
+        BusStopCandidate yanagido = null;
+        for (BusStopCandidate candidate : result.getSummaryCandidates()) {
+            if (candidate.getBusStopId() == BusStopId.YANAGIDO) yanagido = candidate;
+        }
+        assertNotNull(yanagido);
+        assertEquals(LocalTime.of(23, 8), yanagido.getArrivalTimeAtBusStop());
+        assertEquals(8, yanagido.getTravelMinutes());
+        assertNull(yanagido.getDepartureTime());
+        assertNull(yanagido.getDestinationArrivalTime());
+    }
+
+    @Test
     public void pathMapAndUiFiltersAreMaintained() {
         assertEquals(9, ShortestPathCalculator.findShortestPath(
             LocalCampusGraphData.getNodes(),
@@ -194,6 +214,7 @@ public class JavaMigrationRegressionTest {
             startMonth,
             endMonth,
             false,
+            "",
             stopTimes
         );
     }

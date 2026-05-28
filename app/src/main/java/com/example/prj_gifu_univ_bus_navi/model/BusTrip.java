@@ -20,6 +20,7 @@ public final class BusTrip {
     private final Integer operatingStartMonth;
     private final Integer operatingEndMonth;
     private final boolean mayBeArticulatedBus;
+    private final String optionLabel;
     private final Map<String, LocalTime> stopTimes;
 
     public BusTrip(
@@ -36,6 +37,7 @@ public final class BusTrip {
         Integer operatingStartMonth,
         Integer operatingEndMonth,
         boolean mayBeArticulatedBus,
+        String optionLabel,
         Map<String, LocalTime> stopTimes
     ) {
         this.id = id;
@@ -51,6 +53,7 @@ public final class BusTrip {
         this.operatingStartMonth = operatingStartMonth;
         this.operatingEndMonth = operatingEndMonth;
         this.mayBeArticulatedBus = mayBeArticulatedBus;
+        this.optionLabel = optionLabel;
         this.stopTimes = Collections.unmodifiableMap(new LinkedHashMap<>(stopTimes));
     }
 
@@ -68,6 +71,7 @@ public final class BusTrip {
     public Integer getOperatingEndMonth() { return operatingEndMonth; }
     public boolean isMayBeArticulatedBus() { return mayBeArticulatedBus; }
     public boolean getMayBeArticulatedBus() { return mayBeArticulatedBus; }
+    public String getOptionLabel() { return optionLabel; }
     public Map<String, LocalTime> getStopTimes() { return stopTimes; }
 
     @Override
@@ -88,6 +92,7 @@ public final class BusTrip {
             operationRule == busTrip.operationRule &&
             Objects.equals(operatingStartMonth, busTrip.operatingStartMonth) &&
             Objects.equals(operatingEndMonth, busTrip.operatingEndMonth) &&
+            Objects.equals(optionLabel, busTrip.optionLabel) &&
             Objects.equals(stopTimes, busTrip.stopTimes);
     }
 
@@ -95,7 +100,7 @@ public final class BusTrip {
     public int hashCode() {
         return Objects.hash(id, destination, baseDayType, routeName, hospitalDepartureTime, yanagidoDepartureTime,
             universityDepartureTime, jrGifuArrivalTime, meitetsuGifuArrivalTime, operationRule,
-            operatingStartMonth, operatingEndMonth, mayBeArticulatedBus, stopTimes);
+            operatingStartMonth, operatingEndMonth, mayBeArticulatedBus, optionLabel, stopTimes);
     }
 
     @Override
@@ -114,6 +119,7 @@ public final class BusTrip {
             ", operatingStartMonth=" + operatingStartMonth +
             ", operatingEndMonth=" + operatingEndMonth +
             ", mayBeArticulatedBus=" + mayBeArticulatedBus +
+            ", optionLabel='" + optionLabel + '\'' +
             ", stopTimes=" + stopTimes +
             '}';
     }

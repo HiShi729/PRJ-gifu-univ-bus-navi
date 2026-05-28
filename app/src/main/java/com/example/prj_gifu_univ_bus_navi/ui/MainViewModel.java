@@ -84,6 +84,16 @@ public class MainViewModel {
 
     public AppScreen getCurrentScreen() { return currentScreen; }
     public String getSelectedCurrentNodeId() { return selectedCurrentNodeId; }
+
+    public String getSelectedCurrentNodeName() {
+        for (CampusGraphNode node : getGraphNodes()) {
+            if (node.getId().equals(selectedCurrentNodeId)) {
+                return node.getName();
+            }
+        }
+        return "現在地";
+    }
+
     public String getSelectedDestinationStopName() { return selectedDestinationStopName; }
     public SafetyMarginOption getSelectedSafetyMargin() { return selectedSafetyMargin; }
     public RecommendationResult getRecommendationResult() { return recommendationResult; }
@@ -128,6 +138,24 @@ public class MainViewModel {
     public void selectCurrentNode(String nodeId) {
         selectedCurrentNodeId = nodeId;
         selectedMapNodeId = nodeId;
+    }
+
+    public CampusGraphNode selectNearestNode(double lat, double lon) {
+        List<CampusGraphNode> selectable = getSelectableStartNodes();
+        CampusGraphNode nearest = null;
+        double minDistance = Double.MAX_VALUE;
+        for (CampusGraphNode node : selectable) {
+            if (node.getLatitude() == null || node.getLongitude() == null) continue;
+            double d = Math.hypot(node.getLatitude() - lat, node.getLongitude() - lon);
+            if (d < minDistance) {
+                minDistance = d;
+                nearest = node;
+            }
+        }
+        if (nearest != null) {
+            selectCurrentNode(nearest.getId());
+        }
+        return nearest;
     }
 
     public void selectDestinationStop(String stopName) {

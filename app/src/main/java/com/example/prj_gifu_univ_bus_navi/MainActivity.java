@@ -34,9 +34,13 @@ import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import com.example.prj_gifu_univ_bus_navi.data.LocalBusScheduleData;
+import com.example.prj_gifu_univ_bus_navi.data.LocalBusStopData;
 import com.example.prj_gifu_univ_bus_navi.data.UserSettingsRepository;
 import com.example.prj_gifu_univ_bus_navi.data.WeatherRepository;
+import com.example.prj_gifu_univ_bus_navi.model.BusStop;
 import com.example.prj_gifu_univ_bus_navi.model.BusStopCandidate;
+import com.example.prj_gifu_univ_bus_navi.model.BusStopId;
+import com.example.prj_gifu_univ_bus_navi.model.BusTrip;
 import com.example.prj_gifu_univ_bus_navi.model.CampusGraphEdge;
 import com.example.prj_gifu_univ_bus_navi.model.CampusGraphNode;
 import com.example.prj_gifu_univ_bus_navi.model.RecommendationResult;
@@ -48,9 +52,12 @@ import com.example.prj_gifu_univ_bus_navi.ui.MainViewModel;
 import com.example.prj_gifu_univ_bus_navi.ui.MapCoordinateProjector;
 import com.example.prj_gifu_univ_bus_navi.ui.SafetyMarginOption;
 import com.example.prj_gifu_univ_bus_navi.ui.UiSelectionFilters;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
     private static final int LOCATION_PERMISSION_REQUEST = 42;
@@ -121,8 +128,17 @@ public class MainActivity extends AppCompatActivity {
 
     private void showHome() {
         viewModel.navigate(AppScreen.HOME);
-        LinearLayout content = baseContent();
-        content.addView(screenTitle("岐大バスナビ"));
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setBackgroundColor(Color.WHITE);
+
+        // 1. Header
+        layout.addView(renderHomeHeader());
+
+        // Content Area (Scrollable)
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(20), dp(16), dp(20), dp(32));
 
         CampusMapView mapView = new CampusMapView(this);
         mapView.setNodes(viewModel.getMapSelectableNodes());
@@ -133,14 +149,53 @@ public class MainActivity extends AppCompatActivity {
             showResult();
         });
         content.addView(mapView, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        content.addView(fieldLabel("現在地"));
-        Spinner currentSpinner = spinner(nodeNames(viewModel.getSelectableStartNodes()));
-        setSpinnerSelection(currentSpinner, selectedNodeIndex(viewModel.getSelectableStartNodes(), viewModel.getSelectedCurrentNodeId()));
+        content.addView(fieldLabel("出発地点"));
+
+        LinearLayout selectionRow = new LinearLayout(this);
+        selectionRow.setOrientation(LinearLayout.HORIZONTAL);
+        selectionRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        selectionRow.setPadding(0, 0, 0, dp(8));
+
+        List<CampusGraphNode> selectableNodes = viewModel.getSelectableStartNodes();
+        Spinner currentSpinner = spinner(nodeNames(selectableNodes));
+        currentSpinner.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+        setSpinnerSelection(currentSpinner, selectedNodeIndex(selectableNodes, viewModel.getSelectedCurrentNodeId()));
         currentSpinner.setOnItemSelectedListener(new SimpleItemSelectedListener(position -> {
-            List<CampusGraphNode> nodes = viewModel.getSelectableStartNodes();
-            if (position >= 0 && position < nodes.size()) viewModel.selectCurrentNode(nodes.get(position).getId());
+            if (position >= 0 && position < selectableNodes.size()) {
+                viewModel.selectCurrentNode(selectableNodes.get(position).getId());
+                mapView.setSelectedNodeId(viewModel.getSelectedCurrentNodeId());
+            }
         }));
-        content.addView(currentSpinner);
+
+        Button gpsButton = new Button(this);
+        gpsButton.setText("現在地から選択");
+        gpsButton.setTextSize(14);
+        gpsButton.setAllCaps(false);
+        gpsButton.setPadding(dp(12), 0, dp(12), 0);
+        gpsButton.setBackground(buttonBackground(Color.rgb(237, 244, 252)));
+        gpsButton.setTextColor(Color.rgb(31, 93, 164));
+        LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(48));
+        btnParams.setMargins(dp(8), 0, 0, 0);
+        gpsButton.setLayoutParams(btnParams);
+        gpsButton.setOnClickListener(v -> {
+            refreshGpsLocation();
+            if (gpsLocation != null) {
+                CampusGraphNode nearest = viewModel.selectNearestNode(gpsLocation.getLatitude(), gpsLocation.getLongitude());
+                if (nearest != null) {
+                    setSpinnerSelection(currentSpinner, selectedNodeIndex(selectableNodes, nearest.getId()));
+                    mapView.setSelectedNodeId(nearest.getId());
+                    mapView.setGpsLocation(gpsLocation);
+                    android.widget.Toast.makeText(this, "最寄りの「" + nearest.getName() + "」を選択しました", android.widget.Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                android.widget.Toast.makeText(this, "現在地を取得できませんでした。\n設定を確認してください。", android.widget.Toast.LENGTH_LONG).show();
+            }
+        });
+
+        selectionRow.addView(currentSpinner);
+        selectionRow.addView(gpsButton);
+        content.addView(selectionRow);
+
         Switch rainSwitch = new Switch(this);
         rainSwitch.setText("雨の日モード");
         rainSwitch.setTextSize(16);
@@ -154,13 +209,44 @@ public class MainActivity extends AppCompatActivity {
             showResult();
         });
         content.addView(search);
-        Button settings = secondaryButton("設定");
+
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setFillViewport(true);
+        scrollView.addView(content);
+        layout.addView(scrollView);
+
+        root.removeAllViews();
+        root.addView(layout);
+    }
+
+    private View renderHomeHeader() {
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setPadding(dp(20), dp(12), dp(20), dp(12));
+        header.setBackgroundColor(Color.WHITE);
+        header.setElevation(dp(2));
+        header.setGravity(android.view.Gravity.CENTER_VERTICAL);
+
+        TextView titleView = new TextView(this);
+        titleView.setText("岐大バスナビ");
+        titleView.setTextSize(20);
+        titleView.setTypeface(Typeface.DEFAULT_BOLD);
+        titleView.setTextColor(Color.rgb(38, 50, 56));
+        titleView.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+
+        TextView settings = new TextView(this);
+        settings.setText("⚙設定");
+        settings.setTextSize(16);
+        settings.setTextColor(Color.rgb(2, 136, 209));
+        settings.setPadding(dp(8), dp(8), dp(8), dp(8));
         settings.setOnClickListener(v -> {
             viewModel.navigate(AppScreen.SETTINGS);
             showSettings();
         });
-        content.addView(settings);
-        setContent(content);
+
+        header.addView(titleView);
+        header.addView(settings);
+        return header;
     }
 
     private void showSettings() {
@@ -205,28 +291,264 @@ public class MainActivity extends AppCompatActivity {
 
     private void showResult() {
         viewModel.navigate(AppScreen.RESULT);
-        LinearLayout content = baseContent();
-        content.addView(backButton());
-        content.addView(screenTitle("バス候補"));
         RecommendationResult result = viewModel.getRecommendationResult();
-        if (result == null || result.getRecommendedCandidate() == null) {
-            content.addView(messageLabel("現在時刻以降に乗車可能な便がありません"));
-        } else {
-            content.addView(sectionLabel("おすすめ候補"));
-            content.addView(candidateView(result.getRecommendedCandidate(), true));
-            List<BusStopCandidate> others = UiSelectionFilters.displayCandidatesExcludingRecommended(
-                result.getAllCandidates(),
-                result.getRecommendedCandidate()
-            );
-            content.addView(sectionLabel("候補一覧"));
-            if (others.isEmpty()) {
-                content.addView(messageLabel("ほかの候補はありません"));
-            }
-            for (BusStopCandidate candidate : others) {
-                content.addView(candidateView(candidate, false));
+        String startName = viewModel.getSelectedCurrentNodeName();
+
+        // Data Preparation
+        List<BusStop> allStops = LocalBusStopData.getBusStops();
+        List<BusStopCandidate> allCandidates = result == null ? new ArrayList<>() : result.getAllCandidates();
+        List<BusStopCandidate> summaryCandidates = result == null ? new ArrayList<>() : result.getSummaryCandidates();
+        boolean hasRideCandidates = result != null && !allCandidates.isEmpty() && result.getRecommendedCandidate() != null;
+
+        // 1. Header with Start Node Name
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setBackgroundColor(Color.WHITE);
+
+        View header = renderResultHeader("バス候補（" + startName + "）");
+        layout.addView(header);
+
+        // Content Area (Scrollable)
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(20), dp(16), dp(20), dp(32));
+
+        // Summary Data: Earliest per BusStopId
+        Map<BusStopId, BusStopCandidate> summaryBest = new HashMap<>();
+        for (BusStopCandidate c : summaryCandidates) {
+            BusStopCandidate currentBest = summaryBest.get(c.getBusStopId());
+            if (currentBest == null || isEarlierSummaryCandidate(c, currentBest)) {
+                summaryBest.put(c.getBusStopId(), c);
             }
         }
-        setContent(content);
+
+        // 2. Summary Section
+        content.addView(sectionLabel("目的地候補別の最短到着"));
+        if (!hasRideCandidates) {
+            String message = result == null || result.getMessage() == null
+                ? "現在時刻以降に乗車可能な便がありません"
+                : result.getMessage();
+            content.addView(messageLabel(message));
+        }
+        content.addView(renderBusTable(summaryBest, allStops, true, null, null));
+
+        if (hasRideCandidates) {
+            // Group Candidates by Trip for "Candidates" and "Options"
+            List<String> tripIdOrder = new ArrayList<>();
+            Map<String, Map<BusStopId, BusStopCandidate>> tripStopMap = new HashMap<>();
+            Map<String, BusStopCandidate> tripRepresentative = new HashMap<>();
+
+            for (BusStopCandidate c : allCandidates) {
+                if (!tripStopMap.containsKey(c.getTripId())) {
+                    tripIdOrder.add(c.getTripId());
+                    tripStopMap.put(c.getTripId(), new HashMap<>());
+                    tripRepresentative.put(c.getTripId(), c);
+                }
+                tripStopMap.get(c.getTripId()).put(c.getBusStopId(), c);
+            }
+
+            // 3. Recommended Section
+            BusStopCandidate rec = result.getRecommendedCandidate();
+            content.addView(sectionLabel("おすすめ候補"));
+            content.addView(renderRecommendedCard(rec));
+
+            // 4. Candidates Section
+            content.addView(sectionLabel("候補一覧"));
+            for (int i = 0; i < tripIdOrder.size(); i++) {
+                String tripId = tripIdOrder.get(i);
+                content.addView(renderCandidateCard(tripStopMap.get(tripId), allStops, tripRepresentative.get(tripId).getRouteName(), tripRepresentative.get(tripId).getOptionLabel()));
+            }
+        }
+
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setFillViewport(true);
+        scrollView.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f));
+        scrollView.addView(content);
+        layout.addView(scrollView);
+
+        root.removeAllViews();
+        root.addView(layout);
+    }
+
+    private boolean isEarlierSummaryCandidate(BusStopCandidate candidate, BusStopCandidate currentBest) {
+        LocalTime candidateArrival = candidate.getDestinationArrivalTime();
+        LocalTime currentArrival = currentBest.getDestinationArrivalTime();
+        if (candidateArrival == null || currentArrival == null) {
+            return candidate.getArrivalTimeAtBusStop().compareTo(currentBest.getArrivalTimeAtBusStop()) < 0;
+        }
+        return candidateArrival.compareTo(currentArrival) < 0;
+    }
+
+    private View renderResultHeader(String title) {
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setPadding(dp(20), dp(12), dp(20), dp(12));
+        header.setBackgroundColor(Color.rgb(250, 250, 250));
+        header.setElevation(dp(2));
+
+        TextView back = new TextView(this);
+        back.setText("←");
+        back.setTextSize(20);
+        back.setPadding(0, 0, dp(16), 0);
+        back.setTextColor(Color.rgb(2, 136, 209));
+        back.setOnClickListener(v -> {
+            viewModel.navigateBack();
+            renderCurrentScreen();
+        });
+
+        TextView titleView = new TextView(this);
+        titleView.setText(title);
+        titleView.setTextSize(18);
+        titleView.setTypeface(Typeface.DEFAULT_BOLD);
+        titleView.setTextColor(Color.rgb(38, 50, 56));
+
+        header.addView(back);
+        header.addView(titleView);
+        return header;
+    }
+
+    private View renderBusTable(Map<BusStopId, BusStopCandidate> data, List<BusStop> stops, boolean isSummary, String routeName, String optionLabel) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(12), dp(12), dp(12), dp(12));
+        card.setBackground(cardBackground(Color.WHITE));
+
+        if (routeName != null) {
+            TextView title = new TextView(this);
+            title.setText(routeName);
+            title.setTextSize(14);
+            title.setTypeface(Typeface.DEFAULT_BOLD);
+            title.setTextColor(Color.rgb(69, 90, 100));
+            title.setPadding(0, 0, 0, dp(8));
+            card.addView(title);
+        }
+
+        // Rows: Destination, ArrivalAtStop, Departure, DestinationArrival, (Walk for summary)
+        card.addView(renderTableRow("目的地", stops, s -> s.getName(), true));
+        card.addView(renderTableRow("バス停着", stops, s -> formatTime(data.get(s.getId()), "arrival"), false));
+        card.addView(renderTableRow("発車", stops, s -> formatTime(data.get(s.getId()), "departure"), false));
+        card.addView(renderTableRow("降車", stops, s -> formatTime(data.get(s.getId()), "destination"), false));
+        if (isSummary) {
+            card.addView(renderTableRow("徒歩", stops, s -> formatWalk(data.get(s.getId())), false));
+        }
+
+        if (optionLabel != null && !optionLabel.trim().isEmpty()) {
+            TextView labelView = new TextView(this);
+            labelView.setText(optionLabel);
+            labelView.setTextSize(13);
+            labelView.setTextColor(Color.rgb(2, 136, 209));
+            labelView.setGravity(android.view.Gravity.CENTER);
+            labelView.setPadding(0, dp(12), 0, 0);
+            card.addView(labelView);
+        }
+
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.setMargins(0, dp(4), 0, dp(16));
+        card.setLayoutParams(params);
+        return card;
+    }
+
+    private View renderTableRow(String label, List<BusStop> stops, TableCellProvider provider, boolean isHeader) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setPadding(0, dp(4), 0, dp(4));
+
+        TextView labelView = new TextView(this);
+        labelView.setText(label);
+        labelView.setTextSize(13);
+        labelView.setTextColor(Color.rgb(120, 144, 156));
+        labelView.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.2f));
+        row.addView(labelView);
+
+        for (BusStop stop : stops) {
+            TextView cell = new TextView(this);
+            cell.setText(provider.getCellText(stop));
+            cell.setTextSize(14);
+            cell.setGravity(android.view.Gravity.CENTER);
+            cell.setTextColor(isHeader ? Color.rgb(38, 50, 56) : Color.rgb(69, 90, 100));
+            if (isHeader) cell.setTypeface(Typeface.DEFAULT_BOLD);
+            cell.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+            row.addView(cell);
+        }
+        return row;
+    }
+
+    private View renderRecommendedCard(BusStopCandidate candidate) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(16), dp(16), dp(16), dp(16));
+        card.setBackground(cardBackground(Color.rgb(225, 245, 254)));
+
+        TextView stopName = new TextView(this);
+        stopName.setText(candidate.getBusStopName());
+        stopName.setTextSize(18);
+        stopName.setTypeface(Typeface.DEFAULT_BOLD);
+        stopName.setTextColor(Color.rgb(2, 136, 209));
+        card.addView(stopName);
+
+        String timeInfo = "発車：" + candidate.getDepartureTime().format(DateTimeFormatter.ofPattern("HH:mm")) +
+                          "（到着予定：" + candidate.getDestinationArrivalTime().format(DateTimeFormatter.ofPattern("HH:mm")) + "）";
+        TextView timeView = new TextView(this);
+        timeView.setText(timeInfo);
+        timeView.setTextSize(15);
+        timeView.setPadding(0, dp(4), 0, dp(4));
+        timeView.setTextColor(Color.rgb(38, 50, 56));
+        card.addView(timeView);
+
+        long margin = java.time.Duration.between(candidate.getArrivalTimeAtBusStop(), candidate.getDepartureTime()).toMinutes();
+        String walkInfo = "徒歩：" + candidate.getTravelMinutes() + "分 余裕：" + margin + "分";
+        TextView walkView = new TextView(this);
+        walkView.setText(walkInfo);
+        walkView.setTextSize(15);
+        walkView.setTextColor(Color.rgb(38, 50, 56));
+        card.addView(walkView);
+
+        String optionLabel = candidate.getOptionLabel();
+        if (optionLabel != null && !optionLabel.trim().isEmpty()) {
+            TextView optionView = new TextView(this);
+            optionView.setText(optionLabel);
+            optionView.setTextSize(13);
+            optionView.setTextColor(Color.rgb(2, 136, 209));
+            optionView.setPadding(0, dp(12), 0, 0);
+            card.addView(optionView);
+        }
+
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.setMargins(0, dp(4), 0, dp(16));
+        card.setLayoutParams(params);
+        return card;
+    }
+
+    private View renderCandidateCard(Map<BusStopId, BusStopCandidate> stopMap, List<BusStop> stops, String routeName, String optionLabel) {
+        return renderBusTable(stopMap, stops, false, routeName, optionLabel);
+    }
+
+    private String formatTime(BusStopCandidate c, String type) {
+        if (c == null) return "--:--";
+        LocalTime time;
+        switch (type) {
+            case "arrival": time = c.getArrivalTimeAtBusStop(); break;
+            case "departure": time = c.getDepartureTime(); break;
+            case "destination": time = c.getDestinationArrivalTime(); break;
+            default: return "--:--";
+        }
+        if (time == null) return "--:--";
+        return time.format(DateTimeFormatter.ofPattern("HH:mm"));
+    }
+
+    private String formatWalk(BusStopCandidate c) {
+        if (c == null) return "--";
+        return c.getTravelMinutes() + "分";
+    }
+
+    interface TableCellProvider {
+        String getCellText(BusStop stop);
     }
 
     private void showAddNode() {
@@ -375,34 +697,6 @@ public class MainActivity extends AppCompatActivity {
         setContent(content);
     }
 
-    private TextView candidateView(BusStopCandidate candidate, boolean recommended) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(candidate.getBusStopName()).append("\n");
-        sb.append("発車: ").append(candidate.getDepartureTime().format(DateTimeFormatter.ofPattern("HH:mm"))).append(" ");
-        sb.append("(到着予定: ").append(candidate.getDestinationArrivalTime().format(DateTimeFormatter.ofPattern("HH:mm"))).append(")\n");
-        sb.append("徒歩: ").append(candidate.getTravelMinutes()).append("分 ");
-        sb.append("余裕: ").append(candidate.getRemainingMinutes()).append("分");
-        if (candidate.isMayBeArticulatedBus()) {
-            sb.append("\n※連接バスの可能性あり");
-        }
-
-        TextView view = label(sb.toString());
-        view.setPadding(dp(16), dp(16), dp(16), dp(16));
-        view.setLineSpacing(0, 1.2f);
-        view.setBackground(cardBackground(recommended ? Color.rgb(225, 245, 254) : Color.rgb(250, 250, 250)));
-        if (recommended) {
-            view.setTypeface(Typeface.DEFAULT_BOLD);
-        }
-
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        params.setMargins(0, dp(4), 0, dp(12));
-        view.setLayoutParams(params);
-        return view;
-    }
-
     private LinearLayout baseContent() {
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
@@ -524,7 +818,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView messageLabel(String text) {
         TextView view = label(text);
         view.setBackground(cardBackground(Color.rgb(248, 250, 252)));
-        view.setPadding(dp(12), dp(10), dp(12), dp(10));
+        view.setPadding(dp(16), dp(16), dp(16), dp(16));
         return view;
     }
 

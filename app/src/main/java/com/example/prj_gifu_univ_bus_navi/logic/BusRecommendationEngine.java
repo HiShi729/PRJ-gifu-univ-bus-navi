@@ -86,8 +86,43 @@ public final class BusRecommendationEngine {
         return new RecommendationResult(
             recommended,
             candidates.subList(0, Math.min(10, candidates.size())),
+            recommended == null ? createSummaryOnlyCandidates(pathsByStop, nowTime, selectedDestinationStopName) : candidates,
             recommended == null ? NO_CANDIDATE_MESSAGE : null
         );
+    }
+
+    private static List<BusStopCandidate> createSummaryOnlyCandidates(
+        Map<BusStop, ShortestPathResult> pathsByStop,
+        LocalTime nowTime,
+        String selectedDestinationStopName
+    ) {
+        List<BusStopCandidate> summaryCandidates = new ArrayList<>();
+        for (Map.Entry<BusStop, ShortestPathResult> entry : pathsByStop.entrySet()) {
+            BusStop busStop = entry.getKey();
+            ShortestPathResult path = entry.getValue();
+            if (path == null) {
+                continue;
+            }
+            int travelMinutes = path.getTotalMinutes();
+            summaryCandidates.add(new BusStopCandidate(
+                busStop.getId(),
+                busStop.getName(),
+                "",
+                null,
+                travelMinutes,
+                nowTime.plusMinutes(travelMinutes),
+                0,
+                false,
+                "",
+                selectedDestinationStopName,
+                null,
+                null,
+                false,
+                "",
+                NO_CANDIDATE_MESSAGE
+            ));
+        }
+        return summaryCandidates;
     }
 
     private static BusStopCandidate createCandidate(
@@ -121,6 +156,7 @@ public final class BusRecommendationEngine {
             resolvedArrival.getFirst(),
             resolvedArrival.getSecond(),
             trip.isMayBeArticulatedBus(),
+            trip.getOptionLabel(),
             "発車時刻までに到着でき、候補の中で発車時刻と移動時間を比較できます"
         );
     }

@@ -55,6 +55,12 @@ public final class BusScheduleCsvParser {
             for (String stopName : stopColumns) {
                 stopTimes.put(stopName, parseTimeOrNull(value(values, stopName)));
             }
+            boolean articulated = "true".equalsIgnoreCase(value(values, "mayBeArticulatedBus"));
+            String label = value(values, "option");
+            if (articulated && !label.contains("連接バス")) {
+                label = (label.isEmpty() ? "" : label + " ") + "連接バス";
+            }
+
             trips.add(new BusTrip(
                 defaultIfBlank(value(values, "id"), value(values, "busNo.")),
                 buildDestination(values),
@@ -68,7 +74,8 @@ public final class BusScheduleCsvParser {
                 OperationRule.valueOf(value(values, "operationRule")),
                 parseIntegerOrNull(value(values, "operatingStartMonth")),
                 parseIntegerOrNull(value(values, "operatingEndMonth")),
-                "true".equalsIgnoreCase(value(values, "mayBeArticulatedBus")),
+                articulated,
+                label,
                 stopTimes
             ));
         }
