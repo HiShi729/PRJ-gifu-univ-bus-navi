@@ -32,11 +32,14 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
     }
 }
 
 dependencies {
-    implementation(libs.activity.ktx)
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
+    implementation(libs.androidx.core)
+    implementation(libs.activity)
     implementation(libs.appcompat)
     implementation(libs.constraintlayout)
     implementation(libs.material)
