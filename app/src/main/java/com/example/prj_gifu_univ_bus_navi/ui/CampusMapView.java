@@ -48,7 +48,7 @@ public final class CampusMapView extends View {
         textPaint.setTextSize(sp(11));
         textPaint.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
         try {
-            backgroundBitmap = BitmapFactory.decodeResource(getResources(), R.mipmap.tatemono_no_number);
+            backgroundBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.tatemono_no_number);
         } catch (Exception e) {
             // Ignore
         }
@@ -76,7 +76,8 @@ public final class CampusMapView extends View {
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int width = MeasureSpec.getSize(widthMeasureSpec);
-        int height = (int) (width / CampusMapDefaults.bounds.aspectRatio());
+        float aspectRatio = (float) MapCoordinateTransformer.ORIGINAL_WIDTH / MapCoordinateTransformer.ORIGINAL_HEIGHT;
+        int height = (int) (width / aspectRatio);
         setMeasuredDimension(width, height);
     }
 

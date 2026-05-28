@@ -26,7 +26,11 @@ public final class LocalCampusGraphData {
     new CampusGraphNode("nursing_entrance", "看護学科出入口", NodeType.STANDARD, true, 35.46716771757558, 136.73564761216485),
     new CampusGraphNode("music_building_entrance", "音楽棟出入口", NodeType.STANDARD, true, 35.46635151898763, 136.7359451312858),
     new CampusGraphNode("medical_memorial_hall_entrance", "医学部記念会館出入口", NodeType.STANDARD, true, 35.46722082448828, 136.7340784779407),
-    new CampusGraphNode("kurono_dormitory", "黒野寮", NodeType.STANDARD, true, 35.46922947164818, 136.73842916597033)
+    new CampusGraphNode("kurono_dormitory", "黒野寮", NodeType.STANDARD, true, 35.46922947164818, 136.73842916597033),
+
+    new CampusGraphNode("bus_stop_hospital", "岐阜大学病院", NodeType.BUS_STOP, false, 35.467718, 136.732805),
+    new CampusGraphNode("bus_stop_yanagido", "柳戸橋", NodeType.BUS_STOP, false, 35.467137, 136.735476),
+    new CampusGraphNode("bus_stop_university", "岐阜大学", NodeType.BUS_STOP, false, 35.462718, 136.736083)
 ));
 
     private static final List<CampusGraphEdge> EDGES = Collections.unmodifiableList(Arrays.asList(
@@ -45,7 +49,16 @@ public final class LocalCampusGraphData {
     new CampusGraphEdge("edge_peco_music", "peco_entrance", "music_building_entrance", 3, true, EdgeSourceType.STANDARD, true),
     new CampusGraphEdge("edge_music_nursing", "music_building_entrance", "nursing_entrance", 3, true, EdgeSourceType.STANDARD, true),
     new CampusGraphEdge("edge_nursing_medical_memorial", "nursing_entrance", "medical_memorial_hall_entrance", 3, true, EdgeSourceType.STANDARD, true),
-    new CampusGraphEdge("edge_peco_kurono_dormitory", "peco_entrance", "kurono_dormitory", 7, true, EdgeSourceType.STANDARD, true)
+    new CampusGraphEdge("edge_peco_kurono_dormitory", "peco_entrance", "kurono_dormitory", 7, true, EdgeSourceType.STANDARD, true),
+
+    new CampusGraphEdge("edge_first_cafeteria_bus_stop_university", "first_cafeteria", "bus_stop_university", 3, true, EdgeSourceType.STANDARD, true),
+    new CampusGraphEdge("edge_academic_core_bus_stop_university", "academic_core_south_entrance", "bus_stop_university", 4, true, EdgeSourceType.STANDARD, true),
+    new CampusGraphEdge("edge_nursing_bus_stop_yanagido", "nursing_entrance", "bus_stop_yanagido", 3, true, EdgeSourceType.STANDARD, true),
+    new CampusGraphEdge("edge_music_bus_stop_yanagido", "music_building_entrance", "bus_stop_yanagido", 4, true, EdgeSourceType.STANDARD, true),
+    new CampusGraphEdge("edge_medical_memorial_bus_stop_hospital", "medical_memorial_hall_entrance", "bus_stop_hospital", 3, true, EdgeSourceType.STANDARD, true),
+    new CampusGraphEdge("edge_nursing_bus_stop_hospital", "nursing_entrance", "bus_stop_hospital", 5, true, EdgeSourceType.STANDARD, true),
+    new CampusGraphEdge("edge_bus_stop_hospital_bus_stop_yanagido", "bus_stop_hospital", "bus_stop_yanagido", 4, true, EdgeSourceType.STANDARD, true),
+    new CampusGraphEdge("edge_bus_stop_yanagido_bus_stop_university", "bus_stop_yanagido", "bus_stop_university", 3, true, EdgeSourceType.STANDARD, true)
 ));
 
     private LocalCampusGraphData() {
