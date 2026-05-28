@@ -168,16 +168,19 @@ public final class CampusMapView extends View {
         if (gpsLocation != null && MapCoordinateProjector.isGpsLocationVisibleOnCampusMap(gpsLocation.getLatitude(), gpsLocation.getLongitude())) {
             MapPoint point = MapCoordinateProjector.project(gpsLocation.getLatitude(), gpsLocation.getLongitude(), getWidth(), getHeight());
             if (point != null) {
-                drawGpsPin(canvas, (float) point.getX(), (float) point.getY(), dp(10));
+                drawGpsPin(canvas, (float) point.getX(), (float) point.getY(), dp(3));
             }
         }
 
         // Draw Labels
+        // Labels are disabled as per request
+        /*
         for (LabelRequest req : labelRequests) {
             if (req.finalRect != null) {
                 drawPlacedLabel(canvas, req);
             }
         }
+        */
     }
 
     private void drawPin(Canvas canvas, float x, float y, float radius, NodeType nodeType, boolean isSelected) {
@@ -383,12 +386,12 @@ public final class CampusMapView extends View {
 
     private float nodeRadius(CampusGraphNode node) {
         if (node.getNodeType() == NodeType.BUS_STOP) {
-            return dp(13);
+            return dp(6.5f);
         }
         if (node.getNodeType() == NodeType.USER_ADDED) {
-            return dp(11);
+            return dp(5.5f);
         }
-        return dp(10);
+        return dp(5);
     }
 
     private float dp(float value) {
