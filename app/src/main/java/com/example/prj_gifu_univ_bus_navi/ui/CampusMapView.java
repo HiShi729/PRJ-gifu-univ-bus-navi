@@ -7,7 +7,13 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
-import android.graphics.RectF;
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Rect;
 import android.location.Location;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
@@ -24,7 +30,6 @@ public final class CampusMapView extends View {
     }
 
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private List<CampusGraphNode> nodes = new ArrayList<>();
     private Location gpsLocation;
     private OnNodeTapListener listener;
@@ -42,9 +47,6 @@ public final class CampusMapView extends View {
     }
 
     private void init() {
-        textPaint.setColor(Color.rgb(38, 50, 56));
-        textPaint.setTextSize(sp(11));
-        textPaint.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
         try {
             backgroundBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.tatemono_no_number);
         } catch (Exception e) {
@@ -167,29 +169,6 @@ public final class CampusMapView extends View {
             }
         }
         
-        // Also check labels for tap
-        // Labels are removed, so this logic is simplified
-        /*
-        if (nearestDistance > dp(25)) {
-            for (RectF rect : placedLabelRects) {
-                if (rect.contains(event.getX(), event.getY())) {
-                    float centerX = rect.centerX();
-                    float centerY = rect.centerY();
-                    for (CampusGraphNode node : nodes) {
-                        MapPoint point = pointFor(node);
-                        if (point == null) continue;
-                        double distance = Math.hypot(point.getX() - centerX, point.getY() - centerY);
-                        if (distance < nearestDistance) {
-                            nearestDistance = distance;
-                            nearest = node;
-                        }
-                    }
-                    break;
-                }
-            }
-        }
-        */
-
         if (nearest != null && nearestDistance <= dp(40)) {
             listener.onNodeTapped(nearest);
             performClick();
@@ -221,9 +200,5 @@ public final class CampusMapView extends View {
 
     private float dp(float value) {
         return value * getResources().getDisplayMetrics().density;
-    }
-
-    private float sp(float value) {
-        return value * getResources().getDisplayMetrics().scaledDensity;
     }
 }
