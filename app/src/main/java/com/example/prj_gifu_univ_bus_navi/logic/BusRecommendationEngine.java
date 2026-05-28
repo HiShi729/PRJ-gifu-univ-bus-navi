@@ -121,6 +121,7 @@ public final class BusRecommendationEngine {
             resolvedArrival.getFirst(),
             resolvedArrival.getSecond(),
             trip.isMayBeArticulatedBus(),
+            trip.getOptionLabel(),
             "発車時刻までに到着でき、候補の中で発車時刻と移動時間を比較できます"
         );
     }

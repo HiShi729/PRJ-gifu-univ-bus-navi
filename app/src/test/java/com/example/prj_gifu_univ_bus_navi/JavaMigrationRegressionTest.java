@@ -194,6 +194,7 @@ public class JavaMigrationRegressionTest {
             startMonth,
             endMonth,
             false,
+            "",
             stopTimes
         );
     }
