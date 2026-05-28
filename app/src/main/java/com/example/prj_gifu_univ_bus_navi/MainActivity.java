@@ -149,14 +149,53 @@ public class MainActivity extends AppCompatActivity {
             showResult();
         });
         content.addView(mapView, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        content.addView(fieldLabel("現在地"));
-        Spinner currentSpinner = spinner(nodeNames(viewModel.getSelectableStartNodes()));
-        setSpinnerSelection(currentSpinner, selectedNodeIndex(viewModel.getSelectableStartNodes(), viewModel.getSelectedCurrentNodeId()));
+        content.addView(fieldLabel("出発地点"));
+
+        LinearLayout selectionRow = new LinearLayout(this);
+        selectionRow.setOrientation(LinearLayout.HORIZONTAL);
+        selectionRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        selectionRow.setPadding(0, 0, 0, dp(8));
+
+        List<CampusGraphNode> selectableNodes = viewModel.getSelectableStartNodes();
+        Spinner currentSpinner = spinner(nodeNames(selectableNodes));
+        currentSpinner.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+        setSpinnerSelection(currentSpinner, selectedNodeIndex(selectableNodes, viewModel.getSelectedCurrentNodeId()));
         currentSpinner.setOnItemSelectedListener(new SimpleItemSelectedListener(position -> {
-            List<CampusGraphNode> nodes = viewModel.getSelectableStartNodes();
-            if (position >= 0 && position < nodes.size()) viewModel.selectCurrentNode(nodes.get(position).getId());
+            if (position >= 0 && position < selectableNodes.size()) {
+                viewModel.selectCurrentNode(selectableNodes.get(position).getId());
+                mapView.setSelectedNodeId(viewModel.getSelectedCurrentNodeId());
+            }
         }));
-        content.addView(currentSpinner);
+
+        Button gpsButton = new Button(this);
+        gpsButton.setText("現在地から選択");
+        gpsButton.setTextSize(14);
+        gpsButton.setAllCaps(false);
+        gpsButton.setPadding(dp(12), 0, dp(12), 0);
+        gpsButton.setBackground(buttonBackground(Color.rgb(237, 244, 252)));
+        gpsButton.setTextColor(Color.rgb(31, 93, 164));
+        LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(48));
+        btnParams.setMargins(dp(8), 0, 0, 0);
+        gpsButton.setLayoutParams(btnParams);
+        gpsButton.setOnClickListener(v -> {
+            refreshGpsLocation();
+            if (gpsLocation != null) {
+                CampusGraphNode nearest = viewModel.selectNearestNode(gpsLocation.getLatitude(), gpsLocation.getLongitude());
+                if (nearest != null) {
+                    setSpinnerSelection(currentSpinner, selectedNodeIndex(selectableNodes, nearest.getId()));
+                    mapView.setSelectedNodeId(nearest.getId());
+                    mapView.setGpsLocation(gpsLocation);
+                    android.widget.Toast.makeText(this, "最寄りの「" + nearest.getName() + "」を選択しました", android.widget.Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                android.widget.Toast.makeText(this, "現在地を取得できませんでした。\n設定を確認してください。", android.widget.Toast.LENGTH_LONG).show();
+            }
+        });
+
+        selectionRow.addView(currentSpinner);
+        selectionRow.addView(gpsButton);
+        content.addView(selectionRow);
+
         Switch rainSwitch = new Switch(this);
         rainSwitch.setText("雨の日モード");
         rainSwitch.setTextSize(16);

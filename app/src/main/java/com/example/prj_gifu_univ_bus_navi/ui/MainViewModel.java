@@ -140,6 +140,24 @@ public class MainViewModel {
         selectedMapNodeId = nodeId;
     }
 
+    public CampusGraphNode selectNearestNode(double lat, double lon) {
+        List<CampusGraphNode> selectable = getSelectableStartNodes();
+        CampusGraphNode nearest = null;
+        double minDistance = Double.MAX_VALUE;
+        for (CampusGraphNode node : selectable) {
+            if (node.getLatitude() == null || node.getLongitude() == null) continue;
+            double d = Math.hypot(node.getLatitude() - lat, node.getLongitude() - lon);
+            if (d < minDistance) {
+                minDistance = d;
+                nearest = node;
+            }
+        }
+        if (nearest != null) {
+            selectCurrentNode(nearest.getId());
+        }
+        return nearest;
+    }
+
     public void selectDestinationStop(String stopName) {
         selectedDestinationStopName = stopName;
         if (settingsRepository != null) settingsRepository.saveSelectedDestinationStopName(stopName);
