@@ -16,7 +16,6 @@ import com.example.prj_gifu_univ_bus_navi.R;
 import com.example.prj_gifu_univ_bus_navi.model.CampusGraphNode;
 import com.example.prj_gifu_univ_bus_navi.model.NodeType;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public final class CampusMapView extends View {
@@ -31,7 +30,6 @@ public final class CampusMapView extends View {
     private OnNodeTapListener listener;
     private Bitmap backgroundBitmap;
     private String selectedNodeId;
-    private final List<RectF> placedLabelRects = new ArrayList<>();
 
     public CampusMapView(Context context) {
         super(context);
@@ -99,233 +97,57 @@ public final class CampusMapView extends View {
     }
 
     private void drawPinsAndLabels(Canvas canvas) {
-        List<LabelRequest> labelRequests = new ArrayList<>();
-        placedLabelRects.clear();
-
-        // Prepare Node Labels
+        // 1. Draw Selectable Nodes (excluding Bus Stops and Selected)
+        paint.setStyle(Paint.Style.FILL);
         for (CampusGraphNode node : nodes) {
+            if (node.getId().equals(selectedNodeId)) continue;
+            if (node.getNodeType() == NodeType.BUS_STOP) continue;
+
             MapPoint point = pointFor(node);
             if (point == null) continue;
-
-            float radius = nodeRadius(node);
-            boolean isSelected = node.getId().equals(selectedNodeId);
-            boolean isBusStop = node.getNodeType() == NodeType.BUS_STOP;
-
-            labelRequests.add(new LabelRequest(
-                node.getName(),
-                (float) point.getX(),
-                (float) point.getY(),
-                radius,
-                node.getNodeType(),
-                isSelected || isBusStop,
-                isSelected
-            ));
+            drawPin(canvas, (float) point.getX(), (float) point.getY(), nodeRadius(node), Color.BLACK, Color.WHITE, false);
         }
 
-        // Prepare GPS Label
+        // 2. Draw Bus Stops (excluding Selected)
+        for (CampusGraphNode node : nodes) {
+            if (node.getId().equals(selectedNodeId)) continue;
+            if (node.getNodeType() != NodeType.BUS_STOP) continue;
+
+            MapPoint point = pointFor(node);
+            if (point == null) continue;
+            drawPin(canvas, (float) point.getX(), (float) point.getY(), nodeRadius(node), Color.rgb(211, 47, 47), Color.WHITE, false);
+        }
+
+        // 3. Draw Selected Node
+        for (CampusGraphNode node : nodes) {
+            if (!node.getId().equals(selectedNodeId)) continue;
+
+            MapPoint point = pointFor(node);
+            if (point == null) continue;
+            drawPin(canvas, (float) point.getX(), (float) point.getY(), nodeRadius(node), Color.BLACK, Color.rgb(255, 235, 59), false);
+        }
+
+        // 4. Draw GPS Location
         if (gpsLocation != null && MapCoordinateProjector.isGpsLocationVisibleOnCampusMap(gpsLocation.getLatitude(), gpsLocation.getLongitude())) {
             MapPoint point = MapCoordinateProjector.project(gpsLocation.getLatitude(), gpsLocation.getLongitude(), getWidth(), getHeight());
             if (point != null) {
-                labelRequests.add(new LabelRequest(
-                    "現在地",
-                    (float) point.getX(),
-                    (float) point.getY(),
-                    dp(10),
-                    null,
-                    true,
-                    false
-                ));
+                drawPin(canvas, (float) point.getX(), (float) point.getY(), dp(8), Color.BLACK, Color.rgb(56, 142, 60), true);
             }
         }
-
-        // Sort by priority: HighPriority first, then NodeType, then selected
-        Collections.sort(labelRequests, (a, b) -> {
-            if (a.isHighPriority != b.isHighPriority) return a.isHighPriority ? -1 : 1;
-            if (a.nodeType != b.nodeType) {
-                if (a.nodeType == NodeType.BUS_STOP) return -1;
-                if (b.nodeType == NodeType.BUS_STOP) return 1;
-            }
-            if (a.isSelected != b.isSelected) return a.isSelected ? -1 : 1;
-            return 0;
-        });
-
-        // First pass: decide label positions
-        for (LabelRequest req : labelRequests) {
-            req.finalRect = findBestLabelBounds(req);
-            if (req.finalRect != null) {
-                placedLabelRects.add(req.finalRect);
-            }
-        }
-
-        // Draw Pins
-        paint.setStyle(Paint.Style.FILL);
-        for (CampusGraphNode node : nodes) {
-            MapPoint point = pointFor(node);
-            if (point == null) continue;
-            drawPin(canvas, (float) point.getX(), (float) point.getY(), nodeRadius(node), node.getNodeType(), node.getId().equals(selectedNodeId));
-        }
-
-        if (gpsLocation != null && MapCoordinateProjector.isGpsLocationVisibleOnCampusMap(gpsLocation.getLatitude(), gpsLocation.getLongitude())) {
-            MapPoint point = MapCoordinateProjector.project(gpsLocation.getLatitude(), gpsLocation.getLongitude(), getWidth(), getHeight());
-            if (point != null) {
-                drawGpsPin(canvas, (float) point.getX(), (float) point.getY(), dp(3));
-            }
-        }
-
-        // Draw Labels
-        // Labels are disabled as per request
-        /*
-        for (LabelRequest req : labelRequests) {
-            if (req.finalRect != null) {
-                drawPlacedLabel(canvas, req);
-            }
-        }
-        */
     }
 
-    private void drawPin(Canvas canvas, float x, float y, float radius, NodeType nodeType, boolean isSelected) {
-        if (nodeType == NodeType.BUS_STOP) {
-            paint.setColor(Color.rgb(211, 47, 47));
-        } else if (nodeType == NodeType.USER_ADDED) {
-            paint.setColor(Color.rgb(25, 118, 210));
+    private void drawPin(Canvas canvas, float x, float y, float radius, int outerColor, int innerColor, boolean isGps) {
+        float innerRadius;
+        if (isGps) {
+            innerRadius = radius * 10f / 11f;
         } else {
-            paint.setColor(Color.rgb(69, 90, 100));
+            innerRadius = radius * 2f / 3f;
         }
+
+        paint.setColor(outerColor);
         canvas.drawCircle(x, y, radius, paint);
-        paint.setColor(isSelected ? Color.rgb(255, 235, 59) : Color.WHITE);
-        canvas.drawCircle(x, y, Math.max(dp(4), radius * 0.35f), paint);
-    }
-
-    private void drawGpsPin(Canvas canvas, float x, float y, float radius) {
-        paint.setStyle(Paint.Style.FILL);
-        paint.setColor(Color.rgb(56, 142, 60));
-        canvas.drawCircle(x, y, radius, paint);
-        paint.setColor(Color.WHITE);
-        canvas.drawCircle(x, y, dp(4), paint);
-    }
-
-    private RectF findBestLabelBounds(LabelRequest req) {
-        if (req.text == null || req.text.isEmpty()) return null;
-
-        float paddingX = dp(6);
-        float paddingY = dp(3);
-        float textWidth = textPaint.measureText(req.text);
-        Paint.FontMetrics metrics = textPaint.getFontMetrics();
-        float labelWidth = textWidth + paddingX * 2;
-        float labelHeight = metrics.descent - metrics.ascent + paddingY * 2;
-
-        float bestOverlap = Float.MAX_VALUE;
-        RectF bestRect = null;
-
-        // 8 Candidate positions
-        float distance = req.radius + dp(4);
-        float[][] offsets = {
-            {0, -1}, {1, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}
-        };
-
-        for (float[] offset : offsets) {
-            float centerX = req.x + offset[0] * (distance + labelWidth / 2);
-            float centerY = req.y + offset[1] * (distance + labelHeight / 2);
-            
-            // Adjust to align edge rather than center if using unit vectors
-            float left, top;
-            if (offset[0] == 0) left = req.x - labelWidth / 2;
-            else if (offset[0] > 0) left = req.x + distance;
-            else left = req.x - distance - labelWidth;
-
-            if (offset[1] == 0) top = req.y - labelHeight / 2;
-            else if (offset[1] > 0) top = req.y + distance;
-            else top = req.y - distance - labelHeight;
-
-            RectF candidate = new RectF(left, top, left + labelWidth, top + labelHeight);
-
-            // Check if within view bounds
-            if (candidate.left < dp(2) || candidate.right > getWidth() - dp(2) ||
-                candidate.top < dp(2) || candidate.bottom > getHeight() - dp(2)) {
-                continue;
-            }
-
-            float overlap = calculateOverlapArea(candidate);
-            if (overlap == 0) return candidate; // Found perfect spot
-
-            if (overlap < bestOverlap) {
-                bestOverlap = overlap;
-                bestRect = candidate;
-            }
-        }
-
-        if (req.isHighPriority) {
-            return bestRect != null ? bestRect : new RectF(req.x + distance, req.y - labelHeight / 2, req.x + distance + labelWidth, req.y + labelHeight / 2);
-        } else {
-            // For normal nodes, only show if overlap is small
-            if (bestRect != null && bestOverlap < (labelWidth * labelHeight * 0.2f)) {
-                return bestRect;
-            }
-            return null;
-        }
-    }
-
-    private float calculateOverlapArea(RectF candidate) {
-        float totalOverlap = 0;
-        for (RectF placed : placedLabelRects) {
-            if (RectF.intersects(candidate, placed)) {
-                float left = Math.max(candidate.left, placed.left);
-                float top = Math.max(candidate.top, placed.top);
-                float right = Math.min(candidate.right, placed.right);
-                float bottom = Math.min(candidate.bottom, placed.bottom);
-                totalOverlap += (right - left) * (bottom - top);
-            }
-        }
-        return totalOverlap;
-    }
-
-    private void drawPlacedLabel(Canvas canvas, LabelRequest req) {
-        paint.setStyle(Paint.Style.FILL);
-        if (req.nodeType == NodeType.BUS_STOP) {
-            paint.setColor(Color.argb(235, 255, 235, 238));
-        } else if (req.isSelected) {
-            paint.setColor(Color.argb(235, 255, 253, 231));
-        } else if (req.nodeType == null) { // GPS
-            paint.setColor(Color.argb(235, 232, 245, 233));
-        } else {
-            paint.setColor(Color.argb(220, 255, 255, 255));
-        }
-        canvas.drawRoundRect(req.finalRect, dp(4), dp(4), paint);
-
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeWidth(dp(1));
-        if (req.nodeType == NodeType.BUS_STOP) {
-            paint.setColor(Color.rgb(229, 115, 115));
-        } else if (req.isSelected) {
-            paint.setColor(Color.rgb(251, 192, 45));
-        } else {
-            paint.setColor(Color.rgb(207, 216, 220));
-        }
-        canvas.drawRoundRect(req.finalRect, dp(4), dp(4), paint);
-
-        Paint.FontMetrics metrics = textPaint.getFontMetrics();
-        float paddingX = dp(6);
-        canvas.drawText(req.text, req.finalRect.left + paddingX, req.finalRect.top + dp(3) - metrics.ascent, textPaint);
-    }
-
-    private static class LabelRequest {
-        String text;
-        float x, y;
-        float radius;
-        NodeType nodeType;
-        boolean isHighPriority;
-        boolean isSelected;
-        RectF finalRect;
-
-        LabelRequest(String text, float x, float y, float radius, NodeType nodeType, boolean isHighPriority, boolean isSelected) {
-            this.text = text;
-            this.x = x;
-            this.y = y;
-            this.radius = radius;
-            this.nodeType = nodeType;
-            this.isHighPriority = isHighPriority;
-            this.isSelected = isSelected;
-        }
+        paint.setColor(innerColor);
+        canvas.drawCircle(x, y, innerRadius, paint);
     }
 
     @Override
@@ -346,6 +168,8 @@ public final class CampusMapView extends View {
         }
         
         // Also check labels for tap
+        // Labels are removed, so this logic is simplified
+        /*
         if (nearestDistance > dp(25)) {
             for (RectF rect : placedLabelRects) {
                 if (rect.contains(event.getX(), event.getY())) {
@@ -364,6 +188,7 @@ public final class CampusMapView extends View {
                 }
             }
         }
+        */
 
         if (nearest != null && nearestDistance <= dp(40)) {
             listener.onNodeTapped(nearest);
