@@ -72,7 +72,6 @@ public class MainActivity extends AppCompatActivity {
     private Location gpsLocation;
     private String gpsStatusMessage = "";
     private CampusMapView homeMapView;
-    private TextView homeGpsStatusView;
     private boolean isHomeGpsRefreshScheduled;
     private final Runnable homeGpsRefreshRunnable = new Runnable() {
         @Override
@@ -170,14 +169,6 @@ public class MainActivity extends AppCompatActivity {
             showResult();
         });
         content.addView(mapView, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        TextView gpsStatus = messageLabel(gpsStatusMessage);
-        gpsStatus.setTextSize(13);
-        LinearLayout.LayoutParams gpsStatusParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        gpsStatusParams.setMargins(0, dp(8), 0, 0);
-        content.addView(gpsStatus, gpsStatusParams);
         content.addView(fieldLabel("出発地点"));
 
         LinearLayout selectionRow = new LinearLayout(this);
@@ -252,7 +243,6 @@ public class MainActivity extends AppCompatActivity {
         root.removeAllViews();
         root.addView(layout);
         homeMapView = mapView;
-        homeGpsStatusView = gpsStatus;
         startHomeGpsRefresh();
     }
 
@@ -875,9 +865,6 @@ public class MainActivity extends AppCompatActivity {
         if (viewModel.getCurrentScreen() != AppScreen.HOME) return;
         if (homeMapView != null) {
             homeMapView.setGpsLocation(gpsLocation);
-        }
-        if (homeGpsStatusView != null) {
-            homeGpsStatusView.setText(gpsStatusMessage);
         }
     }
 
