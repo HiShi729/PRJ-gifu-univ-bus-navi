@@ -131,23 +131,34 @@ public class JavaMigrationRegressionTest {
         }
         assertNotNull(yanagido);
         assertEquals(LocalTime.of(23, 8), yanagido.getArrivalTimeAtBusStop());
-        assertEquals(8, yanagido.getTravelMinutes());
+        assertEquals(480, yanagido.getTravelTimeSeconds());
         assertNull(yanagido.getDepartureTime());
         assertNull(yanagido.getDestinationArrivalTime());
     }
 
     @Test
     public void pathMapAndUiFiltersAreMaintained() {
-        assertEquals(9, ShortestPathCalculator.findShortestPath(
+        assertEquals(540, ShortestPathCalculator.findShortestPath(
             LocalCampusGraphData.getNodes(),
             LocalCampusGraphData.getEdges(),
             "engineering_entrance",
             "bus_stop_yanagido"
-        ).getTotalMinutes());
+        ).getTotalSeconds());
 
-        CampusGraphEdge edge = new CampusGraphEdge("edge", "a", "b", 5, true, EdgeSourceType.STANDARD, true);
-        assertEquals(2, EdgeTravelTimeResolver.resolveMinutes(edge, Collections.singletonList(new UserEdgeOverride("edge", 2)), new UserTravelTimeProfile("edge", 5, 3, 0.6), false));
-        assertEquals(4, EdgeTravelTimeResolver.resolveMinutes(edge, Collections.emptyList(), new UserTravelTimeProfile("edge", 5, 3, 0.6), true));
+        CampusGraphEdge edge = new CampusGraphEdge("edge", "a", "b", 300, true, EdgeSourceType.STANDARD, true);
+        assertEquals(120, EdgeTravelTimeResolver.resolveSeconds(edge, Collections.singletonList(new UserEdgeOverride("edge", 120)), new UserTravelTimeProfile("edge", 300, 180, 0.6), false));
+        assertEquals(216, EdgeTravelTimeResolver.resolveSeconds(edge, Collections.emptyList(), new UserTravelTimeProfile("edge", 300, 180, 0.6), true));
+
+        List<CampusGraphNode> secondsNodes = Arrays.asList(
+            new CampusGraphNode("a", "A", NodeType.STANDARD, true, null, null),
+            new CampusGraphNode("b", "B", NodeType.STANDARD, true, null, null),
+            new CampusGraphNode("c", "C", NodeType.STANDARD, true, null, null)
+        );
+        List<CampusGraphEdge> secondsEdges = Arrays.asList(
+            new CampusGraphEdge("a_b", "a", "b", 75, false, EdgeSourceType.STANDARD, true),
+            new CampusGraphEdge("b_c", "b", "c", 75, false, EdgeSourceType.STANDARD, true)
+        );
+        assertEquals(150, ShortestPathCalculator.findShortestPath(secondsNodes, secondsEdges, "a", "c").getTotalSeconds());
 
         assertNotNull(MapCoordinateProjector.project(35.462718, 136.736083, 1000f, 800f));
         assertFalse(MapCoordinateProjector.isGpsLocationVisibleOnCampusMap(37.421998333333335, -122.084));
@@ -163,7 +174,7 @@ public class JavaMigrationRegressionTest {
         Pair<List<CampusGraphNode>, List<CampusGraphEdge>> graph = CampusGraphBuilder.buildGraph(
             Collections.emptyList(),
             Collections.emptyList(),
-            Collections.singletonList(new UserGraphNodeInput("研究室", "base", 3, true, 35.4645, 136.7355, UserNodeCoordinateSource.MANUAL)),
+            Collections.singletonList(new UserGraphNodeInput("研究室", "base", 180, true, 35.4645, 136.7355, UserNodeCoordinateSource.MANUAL)),
             Collections.emptyList()
         );
         assertEquals(1, UiSelectionFilters.selectableMapNodes(graph.getFirst()).size());
@@ -178,6 +189,51 @@ public class JavaMigrationRegressionTest {
         viewModel.navigate(AppScreen.ADD_NODE);
         viewModel.navigateBack();
         assertEquals(AppScreen.SETTINGS, viewModel.getCurrentScreen());
+    }
+
+    @Test
+    public void recommendationUsesSecondPrecisionForCatchDecision() {
+        Map<String, LocalTime> stopTimes = new LinkedHashMap<>();
+        stopTimes.put("JR岐阜", LocalTime.of(18, 35));
+        BusTrip exactTrip = new BusTrip(
+            "seconds_exact",
+            "JR岐阜駅",
+            BaseDayType.WEEKDAY,
+            "テスト",
+            LocalTime.of(18, 0, 30),
+            LocalTime.of(18, 8),
+            LocalTime.of(18, 10),
+            stopTimes.get("JR岐阜"),
+            null,
+            OperationRule.NONE,
+            null,
+            null,
+            false,
+            "",
+            stopTimes
+        );
+
+        RecommendationResult exact = recommendationWithHospitalEdge(exactTrip, 30);
+        assertNotNull(exact.getRecommendedCandidate());
+        assertEquals(30, exact.getRecommendedCandidate().getTravelTimeSeconds());
+
+        RecommendationResult late = recommendationWithHospitalEdge(exactTrip, 31);
+        assertNull(late.getRecommendedCandidate());
+    }
+
+    private RecommendationResult recommendationWithHospitalEdge(BusTrip trip, int travelTimeSeconds) {
+        return BusRecommendationEngine.recommend(
+            "start",
+            LocalDate.of(2026, 5, 7),
+            LocalTime.of(18, 0),
+            0,
+            "JR岐阜",
+            Collections.singletonList(trip),
+            Collections.singletonList(new BusStop(BusStopId.GIFU_UNIV_HOSPITAL, "岐阜大学病院", "hospital")),
+            nodes(),
+            Collections.singletonList(new CampusGraphEdge("start_hospital", "start", "hospital", travelTimeSeconds, true, EdgeSourceType.STANDARD, true)),
+            Collections.emptyList()
+        );
     }
 
     private RecommendationResult recommend(LocalTime nowTime, int safetyMargin, String destination, List<BusTrip> trips) {
@@ -245,9 +301,9 @@ public class JavaMigrationRegressionTest {
 
     private List<CampusGraphEdge> edges() {
         return Arrays.asList(
-            new CampusGraphEdge("start_hospital", "start", "hospital", 9, true, EdgeSourceType.STANDARD, true),
-            new CampusGraphEdge("start_yanagido", "start", "yanagido", 8, true, EdgeSourceType.STANDARD, true),
-            new CampusGraphEdge("start_university", "start", "university", 11, true, EdgeSourceType.STANDARD, true)
+            new CampusGraphEdge("start_hospital", "start", "hospital", 540, true, EdgeSourceType.STANDARD, true),
+            new CampusGraphEdge("start_yanagido", "start", "yanagido", 480, true, EdgeSourceType.STANDARD, true),
+            new CampusGraphEdge("start_university", "start", "university", 660, true, EdgeSourceType.STANDARD, true)
         );
     }
 }

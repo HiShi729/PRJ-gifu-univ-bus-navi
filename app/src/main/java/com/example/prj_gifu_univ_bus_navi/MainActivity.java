@@ -528,7 +528,7 @@ public class MainActivity extends AppCompatActivity {
         card.addView(timeView);
 
         long margin = java.time.Duration.between(candidate.getArrivalTimeAtBusStop(), candidate.getDepartureTime()).toMinutes();
-        String walkInfo = "徒歩：" + candidate.getTravelMinutes() + "分 余裕：" + margin + "分";
+        String walkInfo = "徒歩：" + formatTravelTimeSeconds(candidate.getTravelTimeSeconds()) + " 余裕：" + margin + "分";
         TextView walkView = new TextView(this);
         walkView.setText(walkInfo);
         walkView.setTextSize(15);
@@ -573,7 +573,19 @@ public class MainActivity extends AppCompatActivity {
 
     private String formatWalk(BusStopCandidate c) {
         if (c == null) return "--";
-        return c.getTravelMinutes() + "分";
+        return formatTravelTimeSeconds(c.getTravelTimeSeconds());
+    }
+
+    private static String formatTravelTimeSeconds(int totalSeconds) {
+        int minutes = totalSeconds / 60;
+        int seconds = totalSeconds % 60;
+        if (minutes <= 0) {
+            return seconds + "秒";
+        }
+        if (seconds == 0) {
+            return minutes + "分";
+        }
+        return minutes + "分" + seconds + "秒";
     }
 
     interface TableCellProvider {
@@ -593,8 +605,10 @@ public class MainActivity extends AppCompatActivity {
         Spinner connected = spinner(nodeNames(connectable));
         content.addView(connected);
         content.addView(fieldLabel("接続先までの移動時間"));
-        EditText minutes = editText("接続先までの移動時間", InputType.TYPE_CLASS_NUMBER);
+        EditText minutes = editText("分", InputType.TYPE_CLASS_NUMBER);
+        EditText seconds = editText("秒", InputType.TYPE_CLASS_NUMBER);
         content.addView(minutes);
+        content.addView(seconds);
         CheckBox selectable = new CheckBox(this);
         selectable.setText("スタート地点として選択可能");
         selectable.setTextSize(16);
@@ -633,7 +647,8 @@ public class MainActivity extends AppCompatActivity {
         }));
         Button save = primaryButton("保存");
         save.setOnClickListener(v -> {
-            int minutesValue = parseInt(minutes.getText().toString(), 1);
+            int travelTimeSeconds = parseInt(minutes.getText().toString(), 0) * 60 + parseInt(seconds.getText().toString(), 0);
+            if (travelTimeSeconds <= 0) travelTimeSeconds = 60;
             int sourcePosition = source.getSelectedItemPosition();
             Double lat = null;
             Double lon = null;
@@ -659,7 +674,7 @@ public class MainActivity extends AppCompatActivity {
             viewModel.addUserNode(new UserGraphNodeInput(
                 name.getText().toString().trim(),
                 connectable.get(connected.getSelectedItemPosition()).getId(),
-                minutesValue,
+                travelTimeSeconds,
                 selectable.isChecked(),
                 lat,
                 lon,
@@ -683,8 +698,10 @@ public class MainActivity extends AppCompatActivity {
         TextView standard = messageLabel("");
         content.addView(standard);
         content.addView(fieldLabel("実測移動時間"));
-        EditText measured = editText("実測移動時間", InputType.TYPE_CLASS_NUMBER);
-        content.addView(measured);
+        EditText measuredMinutes = editText("分", InputType.TYPE_CLASS_NUMBER);
+        EditText measuredSeconds = editText("秒", InputType.TYPE_CLASS_NUMBER);
+        content.addView(measuredMinutes);
+        content.addView(measuredSeconds);
         TextView coefficient = messageLabel("");
         content.addView(coefficient);
         Button save = primaryButton("保存");
@@ -696,19 +713,24 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
             CampusGraphEdge edge = edges.get(edgeSpinner.getSelectedItemPosition());
-            int measuredValue = parseInt(measured.getText().toString(), 0);
-            standard.setText("標準移動時間: " + edge.getMinutes() + "分");
+            int measuredValue = parseInt(measuredMinutes.getText().toString(), 0) * 60 + parseInt(measuredSeconds.getText().toString(), 0);
+            standard.setText("標準移動時間: " + formatTravelTimeSeconds(edge.getTravelTimeSeconds()));
             if (measuredValue <= 0) {
                 coefficient.setText("補正係数: 実測時間を入力してください");
                 save.setEnabled(false);
             } else {
-                double ratio = (double) measuredValue / (double) edge.getMinutes();
+                double ratio = (double) measuredValue / (double) edge.getTravelTimeSeconds();
                 coefficient.setText(String.format("補正係数: %.2f倍 (標準時間に掛ける倍率)", ratio));
                 save.setEnabled(true);
             }
         };
         edgeSpinner.setOnItemSelectedListener(new SimpleItemSelectedListener(position -> updateProfilePreview.run()));
-        measured.addTextChangedListener(new TextWatcher() {
+        measuredMinutes.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { updateProfilePreview.run(); }
+            @Override public void afterTextChanged(Editable s) { }
+        });
+        measuredSeconds.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) { updateProfilePreview.run(); }
             @Override public void afterTextChanged(Editable s) { }
@@ -716,9 +738,9 @@ public class MainActivity extends AppCompatActivity {
         save.setOnClickListener(v -> {
             if (edges.isEmpty()) return;
             CampusGraphEdge edge = edges.get(edgeSpinner.getSelectedItemPosition());
-            int measuredValue = parseInt(measured.getText().toString(), 0);
+            int measuredValue = parseInt(measuredMinutes.getText().toString(), 0) * 60 + parseInt(measuredSeconds.getText().toString(), 0);
             if (measuredValue <= 0) return;
-            viewModel.saveTravelTimeProfile(edge.getId(), edge.getMinutes(), measuredValue);
+            viewModel.saveTravelTimeProfile(edge.getId(), edge.getTravelTimeSeconds(), measuredValue);
             showSettings();
         });
         updateProfilePreview.run();
@@ -1052,7 +1074,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static List<String> edgeLabels(List<CampusGraphEdge> edges) {
         List<String> labels = new ArrayList<>();
-        for (CampusGraphEdge edge : edges) labels.add(edge.getId() + " (" + edge.getMinutes() + "分)");
+        for (CampusGraphEdge edge : edges) labels.add(edge.getId() + " (" + formatTravelTimeSeconds(edge.getTravelTimeSeconds()) + ")");
         return labels;
     }
 

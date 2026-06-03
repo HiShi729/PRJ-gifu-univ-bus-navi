@@ -6,16 +6,16 @@ public final class CampusGraphEdge {
     private final String id;
     private final String fromNodeId;
     private final String toNodeId;
-    private final int minutes;
+    private final int travelTimeSeconds;
     private final boolean bidirectional;
     private final EdgeSourceType sourceType;
     private final boolean selectableForUserEdit;
 
-    public CampusGraphEdge(String id, String fromNodeId, String toNodeId, int minutes, boolean bidirectional, EdgeSourceType sourceType, boolean selectableForUserEdit) {
+    public CampusGraphEdge(String id, String fromNodeId, String toNodeId, int travelTimeSeconds, boolean bidirectional, EdgeSourceType sourceType, boolean selectableForUserEdit) {
         this.id = id;
         this.fromNodeId = fromNodeId;
         this.toNodeId = toNodeId;
-        this.minutes = minutes;
+        this.travelTimeSeconds = travelTimeSeconds;
         this.bidirectional = bidirectional;
         this.sourceType = sourceType;
         this.selectableForUserEdit = selectableForUserEdit;
@@ -24,7 +24,7 @@ public final class CampusGraphEdge {
     public String getId() { return id; }
     public String getFromNodeId() { return fromNodeId; }
     public String getToNodeId() { return toNodeId; }
-    public int getMinutes() { return minutes; }
+    public int getTravelTimeSeconds() { return travelTimeSeconds; }
     public boolean isBidirectional() { return bidirectional; }
     public EdgeSourceType getSourceType() { return sourceType; }
     public boolean isSelectableForUserEdit() { return selectableForUserEdit; }
@@ -34,7 +34,7 @@ public final class CampusGraphEdge {
         if (this == o) return true;
         if (!(o instanceof CampusGraphEdge)) return false;
         CampusGraphEdge that = (CampusGraphEdge) o;
-        return minutes == that.minutes &&
+        return travelTimeSeconds == that.travelTimeSeconds &&
             bidirectional == that.bidirectional &&
             selectableForUserEdit == that.selectableForUserEdit &&
             Objects.equals(id, that.id) &&
@@ -45,7 +45,7 @@ public final class CampusGraphEdge {
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, fromNodeId, toNodeId, minutes, bidirectional, sourceType, selectableForUserEdit);
+        return Objects.hash(id, fromNodeId, toNodeId, travelTimeSeconds, bidirectional, sourceType, selectableForUserEdit);
     }
 
     @Override
@@ -54,7 +54,7 @@ public final class CampusGraphEdge {
             "id='" + id + '\'' +
             ", fromNodeId='" + fromNodeId + '\'' +
             ", toNodeId='" + toNodeId + '\'' +
-            ", minutes=" + minutes +
+            ", travelTimeSeconds=" + travelTimeSeconds +
             ", bidirectional=" + bidirectional +
             ", sourceType=" + sourceType +
             ", selectableForUserEdit=" + selectableForUserEdit +
