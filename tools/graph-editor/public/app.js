@@ -116,8 +116,8 @@ function render(serverSummary) {
 
 function renderMap() {
   el.overlay.innerHTML = "";
+  el.overlay.classList.toggle("show-labels", el.labelToggle.checked);
   el.mapStage.classList.toggle("add-node-mode", mode === "add-node");
-  const showLabels = el.labelToggle.checked;
   const showEdges = el.edgeToggle.checked;
   if (showEdges) {
     edges.forEach((edge, index) => {
@@ -131,19 +131,24 @@ function renderMap() {
         index === selectedEdgeIndex ? "selected" : "",
         shiftEdgeIndexes.includes(index) ? "shift-selected" : "",
       ].filter(Boolean).join(" ");
+      const groupClasses = [
+        "edge-group",
+        shiftEdgeIndexes.includes(index) ? "shift-selected" : "",
+      ].filter(Boolean).join(" ");
+      const group = svg("g", { class: groupClasses });
       const line = svg("line", { x1: a.x, y1: a.y, x2: b.x, y2: b.y, class: classes });
       line.addEventListener("click", (event) => {
         event.stopPropagation();
         selectEdge(index, true, event);
       });
-      el.overlay.appendChild(line);
-      if (showLabels) {
-        el.overlay.appendChild(svg("text", { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, class: "edge-label" }, formatTime(edge.travelTimeSeconds)));
-      }
+      group.appendChild(line);
+      group.appendChild(svg("text", { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, class: "edge-label" }, formatTime(edge.travelTimeSeconds)));
+      el.overlay.appendChild(group);
     });
   }
   nodes.forEach((node) => {
     const point = latLonToPixel(Number(node.latitude), Number(node.longitude));
+    const group = svg("g", { class: "node-group" });
     const dot = svg("circle", {
       cx: point.x,
       cy: point.y,
@@ -154,10 +159,9 @@ function renderMap() {
       event.stopPropagation();
       selectNode(node.id);
     });
-    el.overlay.appendChild(dot);
-    if (showLabels) {
-      el.overlay.appendChild(svg("text", { x: point.x + 18, y: point.y - 14, class: "node-label" }, node.name || node.id));
-    }
+    group.appendChild(dot);
+    group.appendChild(svg("text", { x: point.x + 18, y: point.y - 14, class: "node-label" }, node.name || node.id));
+    el.overlay.appendChild(group);
   });
 }
 

@@ -140,6 +140,7 @@ button.active {
 
 .node-label,
 .edge-label {
+  display: none;
   paint-order: stroke;
   stroke: #ffffff;
   stroke-width: 5;
@@ -147,6 +148,15 @@ button.active {
   fill: #263238;
   font-size: 30px;
   pointer-events: none;
+  user-select: none;
+}
+
+#overlay.show-labels .node-label,
+#overlay.show-labels .edge-label,
+.node-group:hover .node-label,
+.edge-group:hover .edge-label,
+.edge-group.shift-selected .edge-label {
+  display: block;
 }
 
 .edge-label {
