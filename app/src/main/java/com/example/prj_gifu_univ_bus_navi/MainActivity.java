@@ -349,7 +349,14 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        // 2. Summary Section
+        // 2. Recommended Section
+        if (hasRideCandidates) {
+            BusStopCandidate rec = result.getRecommendedCandidate();
+            content.addView(sectionLabel("おすすめ候補"));
+            content.addView(renderRecommendedCard(rec));
+        }
+
+        // 3. Summary Section
         content.addView(sectionLabel("目的地候補別の最短到着"));
         if (!hasRideCandidates) {
             String message = result == null || result.getMessage() == null
@@ -373,11 +380,6 @@ public class MainActivity extends AppCompatActivity {
                 }
                 tripStopMap.get(c.getTripId()).put(c.getBusStopId(), c);
             }
-
-            // 3. Recommended Section
-            BusStopCandidate rec = result.getRecommendedCandidate();
-            content.addView(sectionLabel("おすすめ候補"));
-            content.addView(renderRecommendedCard(rec));
 
             // 4. Candidates Section
             content.addView(sectionLabel("候補一覧"));
