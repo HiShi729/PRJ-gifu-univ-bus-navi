@@ -6,8 +6,11 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.location.Location;
+import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.TextWatcher;
@@ -61,10 +64,27 @@ import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
     private static final int LOCATION_PERMISSION_REQUEST = 42;
+    private static final long GPS_REFRESH_INTERVAL_MS = 10_000L;
+    private static final long GPS_SINGLE_UPDATE_TIMEOUT_MS = 3_000L;
     private final MainViewModel viewModel = new MainViewModel();
+    private final Handler gpsRefreshHandler = new Handler(Looper.getMainLooper());
     private FrameLayout root;
     private Location gpsLocation;
     private String gpsStatusMessage = "";
+    private CampusMapView homeMapView;
+    private boolean isHomeGpsRefreshScheduled;
+    private final Runnable homeGpsRefreshRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!isHomeGpsRefreshScheduled) return;
+            if (viewModel.getCurrentScreen() == AppScreen.HOME) {
+                requestFreshGpsLocation(location -> updateHomeGpsViews());
+                gpsRefreshHandler.postDelayed(this, GPS_REFRESH_INTERVAL_MS);
+            } else {
+                stopHomeGpsRefresh();
+            }
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -178,18 +198,23 @@ public class MainActivity extends AppCompatActivity {
         btnParams.setMargins(dp(8), 0, 0, 0);
         gpsButton.setLayoutParams(btnParams);
         gpsButton.setOnClickListener(v -> {
-            refreshGpsLocation();
-            if (gpsLocation != null) {
-                CampusGraphNode nearest = viewModel.selectNearestNode(gpsLocation.getLatitude(), gpsLocation.getLongitude());
-                if (nearest != null) {
-                    setSpinnerSelection(currentSpinner, selectedNodeIndex(selectableNodes, nearest.getId()));
-                    mapView.setSelectedNodeId(nearest.getId());
-                    mapView.setGpsLocation(gpsLocation);
-                    android.widget.Toast.makeText(this, "最寄りの「" + nearest.getName() + "」を選択しました", android.widget.Toast.LENGTH_SHORT).show();
+            gpsButton.setEnabled(false);
+            gpsButton.setText("取得中...");
+            requestFreshGpsLocation(location -> {
+                gpsButton.setEnabled(true);
+                gpsButton.setText("現在地から選択");
+                updateHomeGpsViews();
+                if (location != null) {
+                    CampusGraphNode nearest = viewModel.selectNearestNode(location.getLatitude(), location.getLongitude());
+                    if (nearest != null) {
+                        setSpinnerSelection(currentSpinner, selectedNodeIndex(selectableNodes, nearest.getId()));
+                        mapView.setSelectedNodeId(nearest.getId());
+                        android.widget.Toast.makeText(this, "最寄りの「" + nearest.getName() + "」を選択しました", android.widget.Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    android.widget.Toast.makeText(this, "現在地を取得できませんでした。\n設定を確認してください。", android.widget.Toast.LENGTH_LONG).show();
                 }
-            } else {
-                android.widget.Toast.makeText(this, "現在地を取得できませんでした。\n設定を確認してください。", android.widget.Toast.LENGTH_LONG).show();
-            }
+            });
         });
 
         selectionRow.addView(currentSpinner);
@@ -217,6 +242,8 @@ public class MainActivity extends AppCompatActivity {
 
         root.removeAllViews();
         root.addView(layout);
+        homeMapView = mapView;
+        startHomeGpsRefresh();
     }
 
     private View renderHomeHeader() {
@@ -822,6 +849,25 @@ public class MainActivity extends AppCompatActivity {
         return view;
     }
 
+    private void startHomeGpsRefresh() {
+        if (isHomeGpsRefreshScheduled) return;
+        isHomeGpsRefreshScheduled = true;
+        requestFreshGpsLocation(location -> updateHomeGpsViews());
+        gpsRefreshHandler.postDelayed(homeGpsRefreshRunnable, GPS_REFRESH_INTERVAL_MS);
+    }
+
+    private void stopHomeGpsRefresh() {
+        isHomeGpsRefreshScheduled = false;
+        gpsRefreshHandler.removeCallbacks(homeGpsRefreshRunnable);
+    }
+
+    private void updateHomeGpsViews() {
+        if (viewModel.getCurrentScreen() != AppScreen.HOME) return;
+        if (homeMapView != null) {
+            homeMapView.setGpsLocation(gpsLocation);
+        }
+    }
+
     private String refreshGpsLocation() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_PERMISSION_REQUEST);
@@ -830,10 +876,7 @@ public class MainActivity extends AppCompatActivity {
         }
         try {
             LocationManager manager = (LocationManager) getSystemService(LOCATION_SERVICE);
-            gpsLocation = manager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-            if (gpsLocation == null) {
-                gpsLocation = manager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-            }
+            applyGpsLocation(getBestLastKnownLocation(manager));
         } catch (SecurityException ex) {
             gpsLocation = null;
             gpsStatusMessage = "位置情報権限が必要です";
@@ -843,6 +886,99 @@ public class MainActivity extends AppCompatActivity {
             gpsStatusMessage = "現在地を取得できませんでした";
             return gpsStatusMessage;
         }
+        return gpsStatusMessage;
+    }
+
+    private void requestFreshGpsLocation(GpsLocationCallback callback) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_PERMISSION_REQUEST);
+            gpsStatusMessage = "位置情報権限が必要です";
+            if (callback != null) callback.onLocationRefreshed(null);
+            return;
+        }
+        try {
+            LocationManager manager = (LocationManager) getSystemService(LOCATION_SERVICE);
+            applyGpsLocation(getBestLastKnownLocation(manager));
+
+            String provider = enabledProvider(manager);
+            if (provider == null) {
+                if (callback != null) callback.onLocationRefreshed(gpsLocation);
+                return;
+            }
+
+            final boolean[] completed = {false};
+            final LocationListener[] listenerRef = new LocationListener[1];
+            final Runnable[] timeoutRef = new Runnable[1];
+
+            listenerRef[0] = location -> {
+                if (completed[0]) return;
+                completed[0] = true;
+                gpsRefreshHandler.removeCallbacks(timeoutRef[0]);
+                removeLocationUpdates(manager, listenerRef[0]);
+                applyGpsLocation(location);
+                if (callback != null) callback.onLocationRefreshed(gpsLocation);
+            };
+            timeoutRef[0] = () -> {
+                if (completed[0]) return;
+                completed[0] = true;
+                removeLocationUpdates(manager, listenerRef[0]);
+                if (callback != null) callback.onLocationRefreshed(gpsLocation);
+            };
+
+            manager.requestSingleUpdate(provider, listenerRef[0], Looper.getMainLooper());
+            gpsRefreshHandler.postDelayed(timeoutRef[0], GPS_SINGLE_UPDATE_TIMEOUT_MS);
+        } catch (SecurityException ex) {
+            gpsLocation = null;
+            gpsStatusMessage = "位置情報権限が必要です";
+            if (callback != null) callback.onLocationRefreshed(null);
+        } catch (RuntimeException ex) {
+            gpsStatusMessage = gpsLocation == null ? "現在地を取得できませんでした" : gpsStatusMessage;
+            if (callback != null) callback.onLocationRefreshed(gpsLocation);
+        }
+    }
+
+    private void removeLocationUpdates(LocationManager manager, LocationListener listener) {
+        try {
+            manager.removeUpdates(listener);
+        } catch (RuntimeException ignored) {
+            // Permission or provider state can change while a one-shot update is pending.
+        }
+    }
+
+    private Location getBestLastKnownLocation(LocationManager manager) {
+        Location gps = null;
+        Location network = null;
+        try {
+            gps = manager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+        } catch (RuntimeException ignored) {
+            // Provider can be unavailable on some devices.
+        }
+        try {
+            network = manager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+        } catch (RuntimeException ignored) {
+            // Provider can be unavailable on some devices.
+        }
+        if (gps == null) return network;
+        if (network == null) return gps;
+        return gps.getTime() >= network.getTime() ? gps : network;
+    }
+
+    private String enabledProvider(LocationManager manager) {
+        if (isProviderEnabled(manager, LocationManager.GPS_PROVIDER)) return LocationManager.GPS_PROVIDER;
+        if (isProviderEnabled(manager, LocationManager.NETWORK_PROVIDER)) return LocationManager.NETWORK_PROVIDER;
+        return null;
+    }
+
+    private boolean isProviderEnabled(LocationManager manager, String provider) {
+        try {
+            return manager.isProviderEnabled(provider);
+        } catch (RuntimeException ex) {
+            return false;
+        }
+    }
+
+    private void applyGpsLocation(Location location) {
+        gpsLocation = location;
         if (gpsLocation == null) {
             gpsStatusMessage = "現在地を取得できませんでした";
         } else if (!MapCoordinateProjector.isInBounds(gpsLocation.getLatitude(), gpsLocation.getLongitude())) {
@@ -852,7 +988,20 @@ public class MainActivity extends AppCompatActivity {
             gpsStatusMessage = "取得座標: " + formatCoordinate(gpsLocation.getLatitude()) + ", " +
                 formatCoordinate(gpsLocation.getLongitude());
         }
-        return gpsStatusMessage;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (viewModel.getCurrentScreen() == AppScreen.HOME) {
+            startHomeGpsRefresh();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        stopHomeGpsRefresh();
+        super.onPause();
     }
 
     @Override
@@ -861,8 +1010,10 @@ public class MainActivity extends AppCompatActivity {
         if (requestCode == LOCATION_PERMISSION_REQUEST &&
             grantResults.length > 0 &&
             grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            refreshGpsLocation();
-            renderCurrentScreen();
+            requestFreshGpsLocation(location -> {
+                updateHomeGpsViews();
+                renderCurrentScreen();
+            });
         }
     }
 
@@ -953,6 +1104,10 @@ public class MainActivity extends AppCompatActivity {
 
     private static String formatCoordinate(double value) {
         return String.format("%.6f", value);
+    }
+
+    interface GpsLocationCallback {
+        void onLocationRefreshed(Location location);
     }
 
     private static final class SimpleItemSelectedListener implements AdapterView.OnItemSelectedListener {
