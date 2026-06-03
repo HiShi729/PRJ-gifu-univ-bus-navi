@@ -21,8 +21,9 @@ body {
 
 .app {
   display: grid;
-  grid-template-columns: minmax(0, 65%) minmax(420px, 35%);
+  grid-template-columns: minmax(620px, 1fr) minmax(420px, 34vw);
   height: 100vh;
+  min-width: 1040px;
 }
 
 .map-pane {
@@ -37,6 +38,7 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
   min-height: 48px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--line);
@@ -71,7 +73,22 @@ button.active {
 .map-stage {
   position: relative;
   flex: 1;
-  overflow: hidden;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  padding: 12px;
+}
+
+.map-stage.add-node-mode {
+  cursor: crosshair;
+}
+
+.map-frame {
+  position: relative;
+  width: min(100%, calc((100vh - 72px) * 0.8571428571));
+  max-height: calc(100vh - 72px);
+  aspect-ratio: 1632 / 1904;
+  flex: none;
 }
 
 #mapImage,
@@ -83,7 +100,7 @@ button.active {
 }
 
 #mapImage {
-  object-fit: fill;
+  object-fit: contain;
 }
 
 .edge-line {
@@ -96,6 +113,13 @@ button.active {
 .edge-line.selected {
   stroke: #d32f2f;
   stroke-width: 9;
+}
+
+.edge-line.shift-selected {
+  stroke: #ff8f00;
+  stroke-width: 10;
+  stroke-dasharray: 18 10;
+  stroke-opacity: 0.95;
 }
 
 .node-dot {
@@ -236,6 +260,7 @@ input[type="checkbox"] {
     grid-template-rows: 55vh auto;
     height: auto;
     min-height: 100vh;
+    min-width: 0;
   }
 
   .side-pane {

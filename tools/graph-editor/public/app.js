@@ -15,10 +15,14 @@ let edges = [];
 let nodeTypes = [];
 let selectedNodeId = "";
 let selectedEdgeIndex = -1;
-let edgeMode = false;
+let mode = "select";
 let pendingFrom = "";
+let shiftEdgeIndexes = [];
 
 const el = {
+  mapStage: document.getElementById("mapStage"),
+  mapFrame: document.getElementById("mapFrame"),
+  mapImage: document.getElementById("mapImage"),
   overlay: document.getElementById("overlay"),
   nodeTable: document.getElementById("nodeTable"),
   edgeTable: document.getElementById("edgeTable"),
@@ -27,6 +31,8 @@ const el = {
   status: document.getElementById("status"),
   labelToggle: document.getElementById("labelToggle"),
   edgeToggle: document.getElementById("edgeToggle"),
+  selectModeButton: document.getElementById("selectModeButton"),
+  nodeModeButton: document.getElementById("nodeModeButton"),
   edgeModeButton: document.getElementById("edgeModeButton"),
 };
 
@@ -36,11 +42,23 @@ document.getElementById("addNodeButton").addEventListener("click", addNode);
 document.getElementById("addEdgeButton").addEventListener("click", () => addEdge("", ""));
 el.labelToggle.addEventListener("change", render);
 el.edgeToggle.addEventListener("change", render);
-el.edgeModeButton.addEventListener("click", () => {
-  edgeMode = !edgeMode;
-  pendingFrom = "";
-  el.edgeModeButton.classList.toggle("active", edgeMode);
-  setStatus(edgeMode ? "1つ目のノードを選択してください" : "");
+el.selectModeButton.addEventListener("click", () => setMode("select"));
+el.nodeModeButton.addEventListener("click", () => setMode("add-node"));
+el.edgeModeButton.addEventListener("click", () => setMode("edge"));
+el.mapFrame.addEventListener("click", (event) => {
+  if (mode !== "add-node" || event.target !== el.overlay) return;
+  const pixel = eventToImagePixel(event);
+  addNodeAtPixel(pixel.x, pixel.y);
+  setStatus("クリック位置にノードを追加しました");
+});
+el.mapImage.addEventListener("load", syncMapImageSize);
+window.addEventListener("resize", syncMapImageSize);
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  clearTransientState();
+  setMode("select", false);
+  render();
+  setStatus("選択状態を解除しました");
 });
 
 loadGraph();
@@ -54,7 +72,10 @@ async function loadGraph() {
   nodeTypes = graph.nodeTypes || [];
   selectedNodeId = nodes[0]?.id || "";
   selectedEdgeIndex = -1;
+  shiftEdgeIndexes = [];
+  pendingFrom = "";
   render(graph.summary);
+  syncMapImageSize();
   setStatus("読み込みました");
 }
 
@@ -95,6 +116,7 @@ function render(serverSummary) {
 
 function renderMap() {
   el.overlay.innerHTML = "";
+  el.mapStage.classList.toggle("add-node-mode", mode === "add-node");
   const showLabels = el.labelToggle.checked;
   const showEdges = el.edgeToggle.checked;
   if (showEdges) {
@@ -104,8 +126,16 @@ function renderMap() {
       if (!from || !to) return;
       const a = latLonToPixel(Number(from.latitude), Number(from.longitude));
       const b = latLonToPixel(Number(to.latitude), Number(to.longitude));
-      const line = svg("line", { x1: a.x, y1: a.y, x2: b.x, y2: b.y, class: `edge-line${index === selectedEdgeIndex ? " selected" : ""}` });
-      line.addEventListener("click", () => selectEdge(index));
+      const classes = [
+        "edge-line",
+        index === selectedEdgeIndex ? "selected" : "",
+        shiftEdgeIndexes.includes(index) ? "shift-selected" : "",
+      ].filter(Boolean).join(" ");
+      const line = svg("line", { x1: a.x, y1: a.y, x2: b.x, y2: b.y, class: classes });
+      line.addEventListener("click", (event) => {
+        event.stopPropagation();
+        selectEdge(index, true, event);
+      });
       el.overlay.appendChild(line);
       if (showLabels) {
         el.overlay.appendChild(svg("text", { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, class: "edge-label" }, formatTime(edge.travelTimeSeconds)));
@@ -120,7 +150,10 @@ function renderMap() {
       r: node.type === "BUS_STOP" ? 18 : 14,
       class: `node-dot${node.type === "BUS_STOP" ? " bus" : ""}${node.id === selectedNodeId ? " selected" : ""}`,
     });
-    dot.addEventListener("click", () => selectNode(node.id));
+    dot.addEventListener("click", (event) => {
+      event.stopPropagation();
+      selectNode(node.id);
+    });
     el.overlay.appendChild(dot);
     if (showLabels) {
       el.overlay.appendChild(svg("text", { x: point.x + 18, y: point.y - 14, class: "node-label" }, node.name || node.id));
@@ -284,9 +317,23 @@ function validate() {
 }
 
 function addNode() {
-  const id = uniqueId("new_node");
-  nodes.push({ id, name: "新規ノード", type: nodeTypes[0] || "STANDARD", visible: true, latitude: 35.464, longitude: 136.737 });
+  addNodeAtPixel(ORIGINAL_WIDTH / 2, ORIGINAL_HEIGHT / 2);
+  setStatus("地図中央にノードを追加しました");
+}
+
+function addNodeAtPixel(x, y) {
+  const gps = pixelToLatLon(x, y);
+  const id = nextCustomNodeId();
+  nodes.push({
+    id,
+    name: "新規ノード",
+    type: nodeTypes.includes("STANDARD") ? "STANDARD" : nodeTypes[0] || "STANDARD",
+    visible: true,
+    latitude: roundCoordinate(gps.latitude),
+    longitude: roundCoordinate(gps.longitude),
+  });
   selectedNodeId = id;
+  selectedEdgeIndex = -1;
   render();
 }
 
@@ -308,7 +355,7 @@ function addEdge(from, to) {
 function selectNode(id, rerender = true) {
   selectedNodeId = id;
   selectedEdgeIndex = -1;
-  if (edgeMode) {
+  if (mode === "edge") {
     if (!pendingFrom) {
       pendingFrom = id;
       setStatus(`${id} からの接続先を選択してください`);
@@ -321,10 +368,36 @@ function selectNode(id, rerender = true) {
   if (rerender) render();
 }
 
-function selectEdge(index, rerender = true) {
+function selectEdge(index, rerender = true, event = null) {
+  if (event?.shiftKey) {
+    selectShiftEdge(index);
+    return;
+  }
   selectedEdgeIndex = index;
   selectedNodeId = "";
+  shiftEdgeIndexes = [];
   if (rerender) render();
+}
+
+function selectShiftEdge(index) {
+  selectedEdgeIndex = -1;
+  selectedNodeId = "";
+  if (shiftEdgeIndexes.length === 1 && shiftEdgeIndexes[0] === index) {
+    shiftEdgeIndexes = [];
+    setStatus("Shiftエッジ選択を解除しました");
+    render();
+    return;
+  }
+  if (!shiftEdgeIndexes.includes(index)) shiftEdgeIndexes.push(index);
+  if (shiftEdgeIndexes.length < 2) {
+    setStatus("Shiftを押したまま、もう1本のエッジを選択してください");
+    render();
+    return;
+  }
+  const point = nodePointBetweenEdges(shiftEdgeIndexes[0], shiftEdgeIndexes[1]);
+  shiftEdgeIndexes = [];
+  addNodeAtPixel(point.x, point.y);
+  setStatus("選択した2本のエッジ間にノードを追加しました");
 }
 
 function latLonToPixel(lat, lon) {
@@ -333,6 +406,92 @@ function latLonToPixel(lat, lon) {
     x: (TRANSFORM.E * (lat - TRANSFORM.C) - TRANSFORM.B * (lon - TRANSFORM.F)) / TRANSFORM.DET,
     y: (-TRANSFORM.D * (lat - TRANSFORM.C) + TRANSFORM.A * (lon - TRANSFORM.F)) / TRANSFORM.DET,
   };
+}
+
+function pixelToLatLon(x, y) {
+  return {
+    latitude: TRANSFORM.A * x + TRANSFORM.B * y + TRANSFORM.C,
+    longitude: TRANSFORM.D * x + TRANSFORM.E * y + TRANSFORM.F,
+  };
+}
+
+function eventToImagePixel(event) {
+  const rect = el.overlay.getBoundingClientRect();
+  const x = clamp(((event.clientX - rect.left) * ORIGINAL_WIDTH) / rect.width, 0, ORIGINAL_WIDTH);
+  const y = clamp(((event.clientY - rect.top) * ORIGINAL_HEIGHT) / rect.height, 0, ORIGINAL_HEIGHT);
+  return { x, y };
+}
+
+function nodePointBetweenEdges(firstIndex, secondIndex) {
+  const first = edgeSegment(firstIndex);
+  const second = edgeSegment(secondIndex);
+  if (!first || !second) return { x: ORIGINAL_WIDTH / 2, y: ORIGINAL_HEIGHT / 2 };
+  const intersection = segmentIntersection(first.a, first.b, second.a, second.b);
+  if (intersection) return intersection;
+  return {
+    x: (midpoint(first.a, first.b).x + midpoint(second.a, second.b).x) / 2,
+    y: (midpoint(first.a, first.b).y + midpoint(second.a, second.b).y) / 2,
+  };
+}
+
+function edgeSegment(index) {
+  const edge = edges[index];
+  if (!edge) return null;
+  const from = nodes.find((node) => node.id === edge.from);
+  const to = nodes.find((node) => node.id === edge.to);
+  if (!from || !to) return null;
+  return {
+    a: latLonToPixel(Number(from.latitude), Number(from.longitude)),
+    b: latLonToPixel(Number(to.latitude), Number(to.longitude)),
+  };
+}
+
+function segmentIntersection(a, b, c, d) {
+  const denominator = (a.x - b.x) * (c.y - d.y) - (a.y - b.y) * (c.x - d.x);
+  if (Math.abs(denominator) < 1e-9) return null;
+  const px = ((a.x * b.y - a.y * b.x) * (c.x - d.x) - (a.x - b.x) * (c.x * d.y - c.y * d.x)) / denominator;
+  const py = ((a.x * b.y - a.y * b.x) * (c.y - d.y) - (a.y - b.y) * (c.x * d.y - c.y * d.x)) / denominator;
+  if (!pointOnSegment(px, py, a, b) || !pointOnSegment(px, py, c, d)) return null;
+  return { x: px, y: py };
+}
+
+function pointOnSegment(x, y, a, b) {
+  const tolerance = 1e-6;
+  return x >= Math.min(a.x, b.x) - tolerance &&
+    x <= Math.max(a.x, b.x) + tolerance &&
+    y >= Math.min(a.y, b.y) - tolerance &&
+    y <= Math.max(a.y, b.y) + tolerance;
+}
+
+function midpoint(a, b) {
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+
+function syncMapImageSize() {
+  const width = el.mapImage.naturalWidth || ORIGINAL_WIDTH;
+  const height = el.mapImage.naturalHeight || ORIGINAL_HEIGHT;
+  el.mapFrame.style.aspectRatio = `${width} / ${height}`;
+}
+
+function setMode(nextMode, shouldRender = true) {
+  mode = nextMode;
+  pendingFrom = "";
+  if (nextMode !== "select") selectedEdgeIndex = -1;
+  if (nextMode !== "edge") pendingFrom = "";
+  el.selectModeButton.classList.toggle("active", mode === "select");
+  el.nodeModeButton.classList.toggle("active", mode === "add-node");
+  el.edgeModeButton.classList.toggle("active", mode === "edge");
+  el.mapStage.classList.toggle("add-node-mode", mode === "add-node");
+  if (mode === "select") setStatus("選択モード");
+  if (mode === "add-node") setStatus("地図上をクリックしてノードを追加できます");
+  if (mode === "edge") setStatus("1つ目のノードを選択してください");
+  if (shouldRender) render();
+}
+
+function clearTransientState() {
+  selectedEdgeIndex = -1;
+  shiftEdgeIndexes = [];
+  pendingFrom = "";
 }
 
 function formatTime(totalSeconds) {
@@ -350,6 +509,23 @@ function uniqueId(base) {
   const ids = new Set(nodes.map((node) => node.id));
   while (ids.has(id)) id = `${base}_${index++}`;
   return id;
+}
+
+function nextCustomNodeId() {
+  const ids = new Set(nodes.map((node) => node.id));
+  for (let index = 1; index < 10000; index++) {
+    const id = `custom_node_${String(index).padStart(3, "0")}`;
+    if (!ids.has(id)) return id;
+  }
+  return uniqueId("custom_node");
+}
+
+function roundCoordinate(value) {
+  return Math.round(value * 1000000000000) / 1000000000000;
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
 }
 
 function selectHtml(options, selected) {

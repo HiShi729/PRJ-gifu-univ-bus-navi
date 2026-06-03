@@ -14,12 +14,16 @@
         <button id="saveButton" type="button" class="primary">保存</button>
         <label><input id="labelToggle" type="checkbox" checked> ラベル</label>
         <label><input id="edgeToggle" type="checkbox" checked> エッジ</label>
+        <button id="selectModeButton" type="button" class="active">選択</button>
+        <button id="nodeModeButton" type="button">ノード追加</button>
         <button id="edgeModeButton" type="button">エッジ追加</button>
         <span id="status"></span>
       </div>
       <div id="mapStage" class="map-stage">
-        <img id="mapImage" src="/api/map-image" alt="">
-        <svg id="overlay" viewBox="0 0 1632 1904" preserveAspectRatio="none"></svg>
+        <div id="mapFrame" class="map-frame">
+          <img id="mapImage" src="/api/map-image" alt="">
+          <svg id="overlay" viewBox="0 0 1632 1904" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
       </div>
     </section>
     <aside class="side-pane">
