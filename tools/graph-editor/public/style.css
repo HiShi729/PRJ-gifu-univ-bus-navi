@@ -133,6 +133,11 @@ button.active {
   stroke: #2e7d32;
 }
 
+.node-dot.hidden-node {
+  fill: #fff176;
+  stroke: #f9a825;
+}
+
 .node-dot.selected {
   stroke: #d32f2f;
   stroke-width: 9;

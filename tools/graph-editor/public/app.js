@@ -1,5 +1,7 @@
 const ORIGINAL_WIDTH = 1632;
 const ORIGINAL_HEIGHT = 1904;
+const DEFAULT_WALKING_SPEED_METERS_PER_SECOND = 1.2;
+const EARTH_RADIUS_METERS = 6371000;
 const TRANSFORM = {
   A: 3.10327166e-8,
   B: -5.61667690e-6,
@@ -153,7 +155,12 @@ function renderMap() {
       cx: point.x,
       cy: point.y,
       r: node.type === "BUS_STOP" ? 18 : 14,
-      class: `node-dot${node.type === "BUS_STOP" ? " bus" : ""}${node.id === selectedNodeId ? " selected" : ""}`,
+      class: [
+        "node-dot",
+        node.type === "BUS_STOP" ? "bus" : "",
+        node.visible === false ? "hidden-node" : "",
+        node.id === selectedNodeId ? "selected" : "",
+      ].filter(Boolean).join(" "),
     });
     dot.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -178,7 +185,10 @@ function renderNodeTable() {
       <td><input type="checkbox" ${node.visible ? "checked" : ""}></td>
       <td><input class="narrow" type="number" step="0.0000001" value="${node.latitude ?? ""}"></td>
       <td><input class="narrow" type="number" step="0.0000001" value="${node.longitude ?? ""}"></td>
-      <td><button type="button">削除</button></td>`;
+      <td>
+        ${hasNodeCoordinates(node) ? `<button class="nearest-edge-button" type="button">最寄り接続</button>` : ""}
+        <button class="delete-node-button" type="button">削除</button>
+      </td>`;
     const inputs = row.querySelectorAll("input,select");
     inputs[0].addEventListener("input", () => {
       const oldId = node.id;
@@ -192,10 +202,13 @@ function renderNodeTable() {
     });
     inputs[1].addEventListener("input", () => { node.name = inputs[1].value; renderMap(); });
     inputs[2].addEventListener("change", () => { node.type = inputs[2].value; render(); });
-    inputs[3].addEventListener("change", () => { node.visible = inputs[3].checked; });
+    inputs[3].addEventListener("change", () => { node.visible = inputs[3].checked; renderMap(); });
     inputs[4].addEventListener("input", () => { node.latitude = Number(inputs[4].value); renderMap(); });
     inputs[5].addEventListener("input", () => { node.longitude = Number(inputs[5].value); renderMap(); });
-    row.querySelector("button").addEventListener("click", () => {
+    row.querySelector(".nearest-edge-button")?.addEventListener("click", () => {
+      addEdgeToNearestNode(node.id);
+    });
+    row.querySelector(".delete-node-button").addEventListener("click", () => {
       nodes.splice(index, 1);
       edges = edges.filter((edge) => edge.from !== node.id && edge.to !== node.id);
       selectedNodeId = nodes[0]?.id || "";
@@ -342,11 +355,13 @@ function addNodeAtPixel(x, y) {
 }
 
 function addEdge(from, to) {
+  const fromId = from || nodes[0]?.id || "";
+  const toId = to || nodes[1]?.id || nodes[0]?.id || "";
   const edge = {
     id: "",
-    from: from || nodes[0]?.id || "",
-    to: to || nodes[1]?.id || nodes[0]?.id || "",
-    travelTimeSeconds: 60,
+    from: fromId,
+    to: toId,
+    travelTimeSeconds: defaultTravelTimeSeconds(fromId, toId),
     bidirectional: false,
     sourceType: "STANDARD",
     selectableForUserEdit: true,
@@ -354,6 +369,18 @@ function addEdge(from, to) {
   edges.push(edge);
   selectedEdgeIndex = edges.length - 1;
   render();
+}
+
+function addEdgeToNearestNode(fromId) {
+  const nearest = nearestNodeByCoordinate(fromId);
+  if (!nearest) {
+    setStatus("接続できる最寄りノードが見つかりません");
+    return;
+  }
+  addEdge(fromId, nearest.id);
+  selectedNodeId = nearest.id;
+  render();
+  setStatus(`${fromId} から最寄りノード ${nearest.id} へのエッジを追加しました`);
 }
 
 function selectNode(id, rerender = true) {
@@ -469,6 +496,51 @@ function pointOnSegment(x, y, a, b) {
 
 function midpoint(a, b) {
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+
+function nearestNodeByCoordinate(fromId) {
+  const from = nodes.find((node) => node.id === fromId);
+  if (!from || !hasNodeCoordinates(from)) return null;
+  let nearest = null;
+  let nearestDistance = Infinity;
+  nodes.forEach((node) => {
+    if (node.id === from.id || !hasNodeCoordinates(node)) return;
+    const distance = distanceBetweenNodesMeters(from, node);
+    if (!Number.isFinite(distance)) return;
+    if (distance < nearestDistance) {
+      nearest = node;
+      nearestDistance = distance;
+    }
+  });
+  return nearest;
+}
+
+function hasNodeCoordinates(node) {
+  return Number.isFinite(Number(node?.latitude)) && Number.isFinite(Number(node?.longitude));
+}
+
+function defaultTravelTimeSeconds(fromId, toId) {
+  const from = nodes.find((node) => node.id === fromId);
+  const to = nodes.find((node) => node.id === toId);
+  if (!from || !to || from.id === to.id) return 60;
+  const distanceMeters = distanceBetweenNodesMeters(from, to);
+  if (!Number.isFinite(distanceMeters) || distanceMeters <= 0) return 60;
+  return Math.ceil(distanceMeters / DEFAULT_WALKING_SPEED_METERS_PER_SECOND);
+}
+
+function distanceBetweenNodesMeters(from, to) {
+  const lat1 = degreesToRadians(Number(from.latitude));
+  const lat2 = degreesToRadians(Number(to.latitude));
+  const deltaLat = degreesToRadians(Number(to.latitude) - Number(from.latitude));
+  const deltaLon = degreesToRadians(Number(to.longitude) - Number(from.longitude));
+  if (![lat1, lat2, deltaLat, deltaLon].every(Number.isFinite)) return NaN;
+  const a = Math.sin(deltaLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLon / 2) ** 2;
+  return EARTH_RADIUS_METERS * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function degreesToRadians(value) {
+  return value * Math.PI / 180;
 }
 
 function syncMapImageSize() {

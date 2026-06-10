@@ -195,17 +195,22 @@ function summarize(nodes, edges) {
 
 function saveGraph(nodes, edges) {
   const nodeTypes = readNodeTypes();
-  const validation = validateGraph(nodes, edges, nodeTypes);
+  const normalizedEdges = normalizeBidirectionalEdges(edges);
+  const validation = validateGraph(nodes, normalizedEdges, nodeTypes);
   if (validation.errors.length > 0) {
     return { ok: false, status: 400, body: { errors: validation.errors, warnings: validation.warnings, summary: validation.summary } };
   }
   let source = fs.readFileSync(GRAPH_FILE, "utf8");
   source = replaceListBody(source, "NODES", renderNodes(nodes));
-  source = replaceListBody(source, "EDGES", renderEdges(edges));
+  source = replaceListBody(source, "EDGES", renderEdges(normalizedEdges));
   fs.writeFileSync(GRAPH_FILE, source, "utf8");
   const saved = readGraph();
   const summary = summarize(saved.nodes, saved.edges);
   return { ok: true, status: 200, body: { nodes: saved.nodes, edges: saved.edges, nodeTypes, summary, warnings: validation.warnings } };
+}
+
+function normalizeBidirectionalEdges(edges) {
+  return edges.map((edge) => ({ ...edge, bidirectional: true }));
 }
 
 function renderNodes(nodes) {

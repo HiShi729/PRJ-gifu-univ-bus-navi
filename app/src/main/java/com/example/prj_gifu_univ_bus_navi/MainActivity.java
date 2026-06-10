@@ -66,6 +66,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int LOCATION_PERMISSION_REQUEST = 42;
     private static final long GPS_REFRESH_INTERVAL_MS = 10_000L;
     private static final long GPS_SINGLE_UPDATE_TIMEOUT_MS = 3_000L;
+    private static final double DEFAULT_WALKING_SPEED_METERS_PER_SECOND = 1.2;
     private final MainViewModel viewModel = new MainViewModel();
     private final Handler gpsRefreshHandler = new Handler(Looper.getMainLooper());
     private FrameLayout root;
@@ -602,7 +603,7 @@ public class MainActivity extends AppCompatActivity {
         content.addView(name);
         List<CampusGraphNode> connectable = viewModel.getGraphNodes();
         content.addView(fieldLabel("接続先ノード"));
-        Spinner connected = spinner(nodeNames(connectable));
+        Spinner connected = spinner(withUnset(nodeNames(connectable)));
         content.addView(connected);
         content.addView(fieldLabel("接続先までの移動時間"));
         EditText minutes = editText("分", InputType.TYPE_CLASS_NUMBER);
@@ -626,6 +627,10 @@ public class MainActivity extends AppCompatActivity {
         longitude.setVisibility(View.GONE);
         content.addView(latitude);
         content.addView(longitude);
+        Button nearest = secondaryButton("最寄りノードを接続先に設定");
+        nearest.setVisibility(View.GONE);
+        content.addView(nearest);
+        Runnable updateNearestButton = () -> nearest.setVisibility(readAddNodeCoordinate(source, latitude, longitude) == null ? View.GONE : View.VISIBLE);
         source.setOnItemSelectedListener(new SimpleItemSelectedListener(position -> {
             boolean manual = position == 2;
             latitude.setVisibility(manual ? View.VISIBLE : View.GONE);
@@ -633,22 +638,65 @@ public class MainActivity extends AppCompatActivity {
             if (position == 1) {
                 gpsStatus.setVisibility(View.VISIBLE);
                 gpsStatus.setText("GPS取得中...");
-                gpsStatus.setText(refreshGpsLocation());
-                if (gpsLocation != null) {
-                    latitude.setText(String.valueOf(gpsLocation.getLatitude()));
-                    longitude.setText(String.valueOf(gpsLocation.getLongitude()));
-                }
+                requestFreshGpsLocation(location -> {
+                    gpsStatus.setText(gpsStatusMessage);
+                    if (location != null) {
+                        latitude.setText(String.valueOf(location.getLatitude()));
+                        longitude.setText(String.valueOf(location.getLongitude()));
+                    }
+                    updateNearestButton.run();
+                });
             } else if (position == 0) {
                 gpsStatus.setVisibility(View.GONE);
                 gpsStatus.setText("");
             } else {
                 gpsStatus.setVisibility(View.GONE);
             }
+            updateNearestButton.run();
         }));
+        TextWatcher coordinateWatcher = new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { updateNearestButton.run(); }
+            @Override public void afterTextChanged(Editable s) { }
+        };
+        latitude.addTextChangedListener(coordinateWatcher);
+        longitude.addTextChangedListener(coordinateWatcher);
+        nearest.setOnClickListener(v -> {
+            double[] coordinate = readAddNodeCoordinate(source, latitude, longitude);
+            if (coordinate == null) {
+                gpsStatus.setVisibility(View.VISIBLE);
+                gpsStatus.setText("座標を入力または取得してください");
+                return;
+            }
+            CampusGraphNode nearestNode = nearestNode(connectable, coordinate[0], coordinate[1]);
+            if (nearestNode == null) {
+                gpsStatus.setVisibility(View.VISIBLE);
+                gpsStatus.setText("座標を持つ接続先ノードがありません");
+                return;
+            }
+            connected.setSelection(selectedNodeIndex(connectable, nearestNode.getId()) + 1);
+            setTravelTimeInputs(minutes, seconds, defaultTravelTimeSeconds(coordinate[0], coordinate[1], nearestNode));
+            gpsStatus.setVisibility(View.VISIBLE);
+            gpsStatus.setText("最寄りノード: " + nearestNode.getName() + " / " + formatTravelTimeSeconds(parseTravelTimeSeconds(minutes, seconds)));
+        });
         Button save = primaryButton("保存");
         save.setOnClickListener(v -> {
-            int travelTimeSeconds = parseInt(minutes.getText().toString(), 0) * 60 + parseInt(seconds.getText().toString(), 0);
-            if (travelTimeSeconds <= 0) travelTimeSeconds = 60;
+            String nodeName = name.getText().toString().trim();
+            if (nodeName.isEmpty()) {
+                name.setError("ノード名を入力してください");
+                return;
+            }
+            if (connected.getSelectedItemPosition() <= 0) {
+                gpsStatus.setVisibility(View.VISIBLE);
+                gpsStatus.setText("接続先ノードを選択してください");
+                return;
+            }
+            int travelTimeSeconds = parseTravelTimeSeconds(minutes, seconds);
+            if (travelTimeSeconds <= 0) {
+                gpsStatus.setVisibility(View.VISIBLE);
+                gpsStatus.setText("接続先までの移動時間を入力してください");
+                return;
+            }
             int sourcePosition = source.getSelectedItemPosition();
             Double lat = null;
             Double lon = null;
@@ -664,6 +712,11 @@ public class MainActivity extends AppCompatActivity {
             } else if (sourcePosition == 2) {
                 lat = parseDouble(latitude.getText().toString());
                 lon = parseDouble(longitude.getText().toString());
+                if (lat == null || lon == null) {
+                    gpsStatus.setVisibility(View.VISIBLE);
+                    gpsStatus.setText("緯度と経度を入力してください");
+                    return;
+                }
                 coordinateSource = UserNodeCoordinateSource.MANUAL;
             }
             if (lat != null && lon != null && !MapCoordinateProjector.isInBounds(lat, lon)) {
@@ -672,8 +725,8 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
             viewModel.addUserNode(new UserGraphNodeInput(
-                name.getText().toString().trim(),
-                connectable.get(connected.getSelectedItemPosition()).getId(),
+                nodeName,
+                connectable.get(connected.getSelectedItemPosition() - 1).getId(),
                 travelTimeSeconds,
                 selectable.isChecked(),
                 lat,
@@ -1108,6 +1161,62 @@ public class MainActivity extends AppCompatActivity {
 
     private static void setSpinnerSelection(Spinner spinner, int index) {
         if (index >= 0) spinner.setSelection(index);
+    }
+
+    private double[] readAddNodeCoordinate(Spinner source, EditText latitude, EditText longitude) {
+        int sourcePosition = source.getSelectedItemPosition();
+        if (sourcePosition == 1 && gpsLocation != null) {
+            return new double[] { gpsLocation.getLatitude(), gpsLocation.getLongitude() };
+        }
+        if (sourcePosition == 2) {
+            Double lat = parseDouble(latitude.getText().toString());
+            Double lon = parseDouble(longitude.getText().toString());
+            if (lat != null && lon != null) return new double[] { lat, lon };
+        }
+        return null;
+    }
+
+    private static CampusGraphNode nearestNode(List<CampusGraphNode> nodes, double latitude, double longitude) {
+        CampusGraphNode nearest = null;
+        double nearestDistance = Double.MAX_VALUE;
+        for (CampusGraphNode node : nodes) {
+            if (!hasCoordinate(node)) continue;
+            double distance = distanceMeters(latitude, longitude, node.getLatitude(), node.getLongitude());
+            if (distance < nearestDistance) {
+                nearest = node;
+                nearestDistance = distance;
+            }
+        }
+        return nearest;
+    }
+
+    private static boolean hasCoordinate(CampusGraphNode node) {
+        return node.getLatitude() != null && node.getLongitude() != null;
+    }
+
+    private static int defaultTravelTimeSeconds(double latitude, double longitude, CampusGraphNode node) {
+        if (!hasCoordinate(node)) return 0;
+        double distance = distanceMeters(latitude, longitude, node.getLatitude(), node.getLongitude());
+        if (distance <= 0) return 0;
+        return (int) Math.ceil(distance / DEFAULT_WALKING_SPEED_METERS_PER_SECOND);
+    }
+
+    private static double distanceMeters(double fromLatitude, double fromLongitude, double toLatitude, double toLongitude) {
+        float[] results = new float[1];
+        Location.distanceBetween(fromLatitude, fromLongitude, toLatitude, toLongitude, results);
+        return results[0];
+    }
+
+    private static void setTravelTimeInputs(EditText minutes, EditText seconds, int totalSeconds) {
+        minutes.setText(String.valueOf(totalSeconds / 60));
+        seconds.setText(String.valueOf(totalSeconds % 60));
+    }
+
+    private static int parseTravelTimeSeconds(EditText minutes, EditText seconds) {
+        String minuteText = minutes.getText().toString().trim();
+        String secondText = seconds.getText().toString().trim();
+        if (minuteText.isEmpty() && secondText.isEmpty()) return 0;
+        return parseInt(minuteText, 0) * 60 + parseInt(secondText, 0);
     }
 
     private static int parseInt(String value, int fallback) {
