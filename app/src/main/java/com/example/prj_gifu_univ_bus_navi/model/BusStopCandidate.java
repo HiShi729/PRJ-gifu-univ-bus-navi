@@ -8,7 +8,7 @@ public final class BusStopCandidate {
     private final String busStopName;
     private final String tripId;
     private final LocalTime departureTime;
-    private final int travelMinutes;
+    private final int travelTimeSeconds;
     private final LocalTime arrivalTimeAtBusStop;
     private final int remainingMinutes;
     private final boolean canCatch;
@@ -25,7 +25,7 @@ public final class BusStopCandidate {
         String busStopName,
         String tripId,
         LocalTime departureTime,
-        int travelMinutes,
+        int travelTimeSeconds,
         LocalTime arrivalTimeAtBusStop,
         int remainingMinutes,
         boolean canCatch,
@@ -41,7 +41,7 @@ public final class BusStopCandidate {
         this.busStopName = busStopName;
         this.tripId = tripId;
         this.departureTime = departureTime;
-        this.travelMinutes = travelMinutes;
+        this.travelTimeSeconds = travelTimeSeconds;
         this.arrivalTimeAtBusStop = arrivalTimeAtBusStop;
         this.remainingMinutes = remainingMinutes;
         this.canCatch = canCatch;
@@ -58,7 +58,7 @@ public final class BusStopCandidate {
     public String getBusStopName() { return busStopName; }
     public String getTripId() { return tripId; }
     public LocalTime getDepartureTime() { return departureTime; }
-    public int getTravelMinutes() { return travelMinutes; }
+    public int getTravelTimeSeconds() { return travelTimeSeconds; }
     public LocalTime getArrivalTimeAtBusStop() { return arrivalTimeAtBusStop; }
     public int getRemainingMinutes() { return remainingMinutes; }
     public boolean isCanCatch() { return canCatch; }
@@ -77,7 +77,7 @@ public final class BusStopCandidate {
         if (this == o) return true;
         if (!(o instanceof BusStopCandidate)) return false;
         BusStopCandidate that = (BusStopCandidate) o;
-        return travelMinutes == that.travelMinutes &&
+        return travelTimeSeconds == that.travelTimeSeconds &&
             remainingMinutes == that.remainingMinutes &&
             canCatch == that.canCatch &&
             mayBeArticulatedBus == that.mayBeArticulatedBus &&
@@ -96,7 +96,7 @@ public final class BusStopCandidate {
 
     @Override
     public int hashCode() {
-        return Objects.hash(busStopId, busStopName, tripId, departureTime, travelMinutes, arrivalTimeAtBusStop,
+        return Objects.hash(busStopId, busStopName, tripId, departureTime, travelTimeSeconds, arrivalTimeAtBusStop,
             remainingMinutes, canCatch, routeName, destinationBusStopName, actualArrivalBusStopName,
             destinationArrivalTime, mayBeArticulatedBus, optionLabel, reason);
     }
@@ -108,7 +108,7 @@ public final class BusStopCandidate {
             ", busStopName='" + busStopName + '\'' +
             ", tripId='" + tripId + '\'' +
             ", departureTime=" + departureTime +
-            ", travelMinutes=" + travelMinutes +
+            ", travelTimeSeconds=" + travelTimeSeconds +
             ", arrivalTimeAtBusStop=" + arrivalTimeAtBusStop +
             ", remainingMinutes=" + remainingMinutes +
             ", canCatch=" + canCatch +

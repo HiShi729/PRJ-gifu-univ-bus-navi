@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>学内グラフ編集</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="app">
+    <section class="map-pane">
+      <div class="toolbar">
+        <button id="reloadButton" type="button">再読み込み</button>
+        <button id="saveButton" type="button" class="primary">保存</button>
+        <label><input id="labelToggle" type="checkbox"> 常時ラベル</label>
+        <label><input id="edgeToggle" type="checkbox" checked> エッジ</label>
+        <button id="selectModeButton" type="button" class="active">選択</button>
+        <button id="nodeModeButton" type="button">ノード追加</button>
+        <button id="edgeModeButton" type="button">エッジ追加</button>
+        <span id="status"></span>
+      </div>
+      <div id="mapStage" class="map-stage">
+        <div id="mapFrame" class="map-frame">
+          <img id="mapImage" src="/api/map-image" alt="">
+          <svg id="overlay" viewBox="0 0 1632 1904" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+      </div>
+    </section>
+    <aside class="side-pane">
+      <section>
+        <h1>現在状況</h1>
+        <dl id="summary" class="summary"></dl>
+      </section>
+      <section>
+        <div class="section-header">
+          <h2>ノード</h2>
+          <button id="addNodeButton" type="button">追加</button>
+        </div>
+        <div class="table-wrap">
+          <table id="nodeTable"></table>
+        </div>
+      </section>
+      <section>
+        <div class="section-header">
+          <h2>エッジ</h2>
+          <button id="addEdgeButton" type="button">追加</button>
+        </div>
+        <div class="table-wrap">
+          <table id="edgeTable"></table>
+        </div>
+      </section>
+      <section>
+        <h2>検証結果</h2>
+        <div id="validation" class="validation"></div>
+      </section>
+    </aside>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

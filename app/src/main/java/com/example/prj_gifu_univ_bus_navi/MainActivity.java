@@ -66,6 +66,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int LOCATION_PERMISSION_REQUEST = 42;
     private static final long GPS_REFRESH_INTERVAL_MS = 10_000L;
     private static final long GPS_SINGLE_UPDATE_TIMEOUT_MS = 3_000L;
+    private static final double DEFAULT_WALKING_SPEED_METERS_PER_SECOND = 1.2;
     private final MainViewModel viewModel = new MainViewModel();
     private final Handler gpsRefreshHandler = new Handler(Looper.getMainLooper());
     private FrameLayout root;
@@ -349,7 +350,14 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        // 2. Summary Section
+        // 2. Recommended Section
+        if (hasRideCandidates) {
+            BusStopCandidate rec = result.getRecommendedCandidate();
+            content.addView(sectionLabel("おすすめ候補"));
+            content.addView(renderRecommendedCard(rec));
+        }
+
+        // 3. Summary Section
         content.addView(sectionLabel("目的地候補別の最短到着"));
         if (!hasRideCandidates) {
             String message = result == null || result.getMessage() == null
@@ -373,11 +381,6 @@ public class MainActivity extends AppCompatActivity {
                 }
                 tripStopMap.get(c.getTripId()).put(c.getBusStopId(), c);
             }
-
-            // 3. Recommended Section
-            BusStopCandidate rec = result.getRecommendedCandidate();
-            content.addView(sectionLabel("おすすめ候補"));
-            content.addView(renderRecommendedCard(rec));
 
             // 4. Candidates Section
             content.addView(sectionLabel("候補一覧"));
@@ -526,7 +529,7 @@ public class MainActivity extends AppCompatActivity {
         card.addView(timeView);
 
         long margin = java.time.Duration.between(candidate.getArrivalTimeAtBusStop(), candidate.getDepartureTime()).toMinutes();
-        String walkInfo = "徒歩：" + candidate.getTravelMinutes() + "分 余裕：" + margin + "分";
+        String walkInfo = "徒歩：" + formatTravelTimeSeconds(candidate.getTravelTimeSeconds()) + " 余裕：" + margin + "分";
         TextView walkView = new TextView(this);
         walkView.setText(walkInfo);
         walkView.setTextSize(15);
@@ -571,7 +574,19 @@ public class MainActivity extends AppCompatActivity {
 
     private String formatWalk(BusStopCandidate c) {
         if (c == null) return "--";
-        return c.getTravelMinutes() + "分";
+        return formatTravelTimeSeconds(c.getTravelTimeSeconds());
+    }
+
+    private static String formatTravelTimeSeconds(int totalSeconds) {
+        int minutes = totalSeconds / 60;
+        int seconds = totalSeconds % 60;
+        if (minutes <= 0) {
+            return seconds + "秒";
+        }
+        if (seconds == 0) {
+            return minutes + "分";
+        }
+        return minutes + "分" + seconds + "秒";
     }
 
     interface TableCellProvider {
@@ -588,11 +603,13 @@ public class MainActivity extends AppCompatActivity {
         content.addView(name);
         List<CampusGraphNode> connectable = viewModel.getGraphNodes();
         content.addView(fieldLabel("接続先ノード"));
-        Spinner connected = spinner(nodeNames(connectable));
+        Spinner connected = spinner(withUnset(nodeNames(connectable)));
         content.addView(connected);
         content.addView(fieldLabel("接続先までの移動時間"));
-        EditText minutes = editText("接続先までの移動時間", InputType.TYPE_CLASS_NUMBER);
+        EditText minutes = editText("分", InputType.TYPE_CLASS_NUMBER);
+        EditText seconds = editText("秒", InputType.TYPE_CLASS_NUMBER);
         content.addView(minutes);
+        content.addView(seconds);
         CheckBox selectable = new CheckBox(this);
         selectable.setText("スタート地点として選択可能");
         selectable.setTextSize(16);
@@ -610,6 +627,10 @@ public class MainActivity extends AppCompatActivity {
         longitude.setVisibility(View.GONE);
         content.addView(latitude);
         content.addView(longitude);
+        Button nearest = secondaryButton("最寄りノードを接続先に設定");
+        nearest.setVisibility(View.GONE);
+        content.addView(nearest);
+        Runnable updateNearestButton = () -> nearest.setVisibility(readAddNodeCoordinate(source, latitude, longitude) == null ? View.GONE : View.VISIBLE);
         source.setOnItemSelectedListener(new SimpleItemSelectedListener(position -> {
             boolean manual = position == 2;
             latitude.setVisibility(manual ? View.VISIBLE : View.GONE);
@@ -617,21 +638,65 @@ public class MainActivity extends AppCompatActivity {
             if (position == 1) {
                 gpsStatus.setVisibility(View.VISIBLE);
                 gpsStatus.setText("GPS取得中...");
-                gpsStatus.setText(refreshGpsLocation());
-                if (gpsLocation != null) {
-                    latitude.setText(String.valueOf(gpsLocation.getLatitude()));
-                    longitude.setText(String.valueOf(gpsLocation.getLongitude()));
-                }
+                requestFreshGpsLocation(location -> {
+                    gpsStatus.setText(gpsStatusMessage);
+                    if (location != null) {
+                        latitude.setText(String.valueOf(location.getLatitude()));
+                        longitude.setText(String.valueOf(location.getLongitude()));
+                    }
+                    updateNearestButton.run();
+                });
             } else if (position == 0) {
                 gpsStatus.setVisibility(View.GONE);
                 gpsStatus.setText("");
             } else {
                 gpsStatus.setVisibility(View.GONE);
             }
+            updateNearestButton.run();
         }));
+        TextWatcher coordinateWatcher = new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { updateNearestButton.run(); }
+            @Override public void afterTextChanged(Editable s) { }
+        };
+        latitude.addTextChangedListener(coordinateWatcher);
+        longitude.addTextChangedListener(coordinateWatcher);
+        nearest.setOnClickListener(v -> {
+            double[] coordinate = readAddNodeCoordinate(source, latitude, longitude);
+            if (coordinate == null) {
+                gpsStatus.setVisibility(View.VISIBLE);
+                gpsStatus.setText("座標を入力または取得してください");
+                return;
+            }
+            CampusGraphNode nearestNode = nearestNode(connectable, coordinate[0], coordinate[1]);
+            if (nearestNode == null) {
+                gpsStatus.setVisibility(View.VISIBLE);
+                gpsStatus.setText("座標を持つ接続先ノードがありません");
+                return;
+            }
+            connected.setSelection(selectedNodeIndex(connectable, nearestNode.getId()) + 1);
+            setTravelTimeInputs(minutes, seconds, defaultTravelTimeSeconds(coordinate[0], coordinate[1], nearestNode));
+            gpsStatus.setVisibility(View.VISIBLE);
+            gpsStatus.setText("最寄りノード: " + nearestNode.getName() + " / " + formatTravelTimeSeconds(parseTravelTimeSeconds(minutes, seconds)));
+        });
         Button save = primaryButton("保存");
         save.setOnClickListener(v -> {
-            int minutesValue = parseInt(minutes.getText().toString(), 1);
+            String nodeName = name.getText().toString().trim();
+            if (nodeName.isEmpty()) {
+                name.setError("ノード名を入力してください");
+                return;
+            }
+            if (connected.getSelectedItemPosition() <= 0) {
+                gpsStatus.setVisibility(View.VISIBLE);
+                gpsStatus.setText("接続先ノードを選択してください");
+                return;
+            }
+            int travelTimeSeconds = parseTravelTimeSeconds(minutes, seconds);
+            if (travelTimeSeconds <= 0) {
+                gpsStatus.setVisibility(View.VISIBLE);
+                gpsStatus.setText("接続先までの移動時間を入力してください");
+                return;
+            }
             int sourcePosition = source.getSelectedItemPosition();
             Double lat = null;
             Double lon = null;
@@ -647,6 +712,11 @@ public class MainActivity extends AppCompatActivity {
             } else if (sourcePosition == 2) {
                 lat = parseDouble(latitude.getText().toString());
                 lon = parseDouble(longitude.getText().toString());
+                if (lat == null || lon == null) {
+                    gpsStatus.setVisibility(View.VISIBLE);
+                    gpsStatus.setText("緯度と経度を入力してください");
+                    return;
+                }
                 coordinateSource = UserNodeCoordinateSource.MANUAL;
             }
             if (lat != null && lon != null && !MapCoordinateProjector.isInBounds(lat, lon)) {
@@ -655,9 +725,9 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
             viewModel.addUserNode(new UserGraphNodeInput(
-                name.getText().toString().trim(),
-                connectable.get(connected.getSelectedItemPosition()).getId(),
-                minutesValue,
+                nodeName,
+                connectable.get(connected.getSelectedItemPosition() - 1).getId(),
+                travelTimeSeconds,
                 selectable.isChecked(),
                 lat,
                 lon,
@@ -681,8 +751,10 @@ public class MainActivity extends AppCompatActivity {
         TextView standard = messageLabel("");
         content.addView(standard);
         content.addView(fieldLabel("実測移動時間"));
-        EditText measured = editText("実測移動時間", InputType.TYPE_CLASS_NUMBER);
-        content.addView(measured);
+        EditText measuredMinutes = editText("分", InputType.TYPE_CLASS_NUMBER);
+        EditText measuredSeconds = editText("秒", InputType.TYPE_CLASS_NUMBER);
+        content.addView(measuredMinutes);
+        content.addView(measuredSeconds);
         TextView coefficient = messageLabel("");
         content.addView(coefficient);
         Button save = primaryButton("保存");
@@ -694,19 +766,24 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
             CampusGraphEdge edge = edges.get(edgeSpinner.getSelectedItemPosition());
-            int measuredValue = parseInt(measured.getText().toString(), 0);
-            standard.setText("標準移動時間: " + edge.getMinutes() + "分");
+            int measuredValue = parseInt(measuredMinutes.getText().toString(), 0) * 60 + parseInt(measuredSeconds.getText().toString(), 0);
+            standard.setText("標準移動時間: " + formatTravelTimeSeconds(edge.getTravelTimeSeconds()));
             if (measuredValue <= 0) {
                 coefficient.setText("補正係数: 実測時間を入力してください");
                 save.setEnabled(false);
             } else {
-                double ratio = (double) measuredValue / (double) edge.getMinutes();
+                double ratio = (double) measuredValue / (double) edge.getTravelTimeSeconds();
                 coefficient.setText(String.format("補正係数: %.2f倍 (標準時間に掛ける倍率)", ratio));
                 save.setEnabled(true);
             }
         };
         edgeSpinner.setOnItemSelectedListener(new SimpleItemSelectedListener(position -> updateProfilePreview.run()));
-        measured.addTextChangedListener(new TextWatcher() {
+        measuredMinutes.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { updateProfilePreview.run(); }
+            @Override public void afterTextChanged(Editable s) { }
+        });
+        measuredSeconds.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) { updateProfilePreview.run(); }
             @Override public void afterTextChanged(Editable s) { }
@@ -714,9 +791,9 @@ public class MainActivity extends AppCompatActivity {
         save.setOnClickListener(v -> {
             if (edges.isEmpty()) return;
             CampusGraphEdge edge = edges.get(edgeSpinner.getSelectedItemPosition());
-            int measuredValue = parseInt(measured.getText().toString(), 0);
+            int measuredValue = parseInt(measuredMinutes.getText().toString(), 0) * 60 + parseInt(measuredSeconds.getText().toString(), 0);
             if (measuredValue <= 0) return;
-            viewModel.saveTravelTimeProfile(edge.getId(), edge.getMinutes(), measuredValue);
+            viewModel.saveTravelTimeProfile(edge.getId(), edge.getTravelTimeSeconds(), measuredValue);
             showSettings();
         });
         updateProfilePreview.run();
@@ -1050,7 +1127,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static List<String> edgeLabels(List<CampusGraphEdge> edges) {
         List<String> labels = new ArrayList<>();
-        for (CampusGraphEdge edge : edges) labels.add(edge.getId() + " (" + edge.getMinutes() + "分)");
+        for (CampusGraphEdge edge : edges) labels.add(edge.getId() + " (" + formatTravelTimeSeconds(edge.getTravelTimeSeconds()) + ")");
         return labels;
     }
 
@@ -1084,6 +1161,62 @@ public class MainActivity extends AppCompatActivity {
 
     private static void setSpinnerSelection(Spinner spinner, int index) {
         if (index >= 0) spinner.setSelection(index);
+    }
+
+    private double[] readAddNodeCoordinate(Spinner source, EditText latitude, EditText longitude) {
+        int sourcePosition = source.getSelectedItemPosition();
+        if (sourcePosition == 1 && gpsLocation != null) {
+            return new double[] { gpsLocation.getLatitude(), gpsLocation.getLongitude() };
+        }
+        if (sourcePosition == 2) {
+            Double lat = parseDouble(latitude.getText().toString());
+            Double lon = parseDouble(longitude.getText().toString());
+            if (lat != null && lon != null) return new double[] { lat, lon };
+        }
+        return null;
+    }
+
+    private static CampusGraphNode nearestNode(List<CampusGraphNode> nodes, double latitude, double longitude) {
+        CampusGraphNode nearest = null;
+        double nearestDistance = Double.MAX_VALUE;
+        for (CampusGraphNode node : nodes) {
+            if (!hasCoordinate(node)) continue;
+            double distance = distanceMeters(latitude, longitude, node.getLatitude(), node.getLongitude());
+            if (distance < nearestDistance) {
+                nearest = node;
+                nearestDistance = distance;
+            }
+        }
+        return nearest;
+    }
+
+    private static boolean hasCoordinate(CampusGraphNode node) {
+        return node.getLatitude() != null && node.getLongitude() != null;
+    }
+
+    private static int defaultTravelTimeSeconds(double latitude, double longitude, CampusGraphNode node) {
+        if (!hasCoordinate(node)) return 0;
+        double distance = distanceMeters(latitude, longitude, node.getLatitude(), node.getLongitude());
+        if (distance <= 0) return 0;
+        return (int) Math.ceil(distance / DEFAULT_WALKING_SPEED_METERS_PER_SECOND);
+    }
+
+    private static double distanceMeters(double fromLatitude, double fromLongitude, double toLatitude, double toLongitude) {
+        float[] results = new float[1];
+        Location.distanceBetween(fromLatitude, fromLongitude, toLatitude, toLongitude, results);
+        return results[0];
+    }
+
+    private static void setTravelTimeInputs(EditText minutes, EditText seconds, int totalSeconds) {
+        minutes.setText(String.valueOf(totalSeconds / 60));
+        seconds.setText(String.valueOf(totalSeconds % 60));
+    }
+
+    private static int parseTravelTimeSeconds(EditText minutes, EditText seconds) {
+        String minuteText = minutes.getText().toString().trim();
+        String secondText = seconds.getText().toString().trim();
+        if (minuteText.isEmpty() && secondText.isEmpty()) return 0;
+        return parseInt(minuteText, 0) * 60 + parseInt(secondText, 0);
     }
 
     private static int parseInt(String value, int fallback) {

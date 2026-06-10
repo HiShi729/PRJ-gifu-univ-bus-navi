@@ -66,7 +66,7 @@ public final class BusRecommendationEngine {
                     trip,
                     busStop,
                     departureTime,
-                    path.getTotalMinutes(),
+                    path.getTotalSeconds(),
                     nowTime,
                     safetyMarginMinutes,
                     selectedDestinationStopName,
@@ -77,10 +77,10 @@ public final class BusRecommendationEngine {
                 }
             }
         }
-        candidates.sort(Comparator.comparing(BusStopCandidate::getDepartureTime).thenComparingInt(BusStopCandidate::getTravelMinutes));
+        candidates.sort(Comparator.comparing(BusStopCandidate::getDepartureTime).thenComparingInt(BusStopCandidate::getTravelTimeSeconds));
 
         BusStopCandidate recommended = candidates.stream()
-            .min(Comparator.comparing(BusStopCandidate::getDepartureTime).thenComparingInt(BusStopCandidate::getTravelMinutes))
+            .min(Comparator.comparing(BusStopCandidate::getDepartureTime).thenComparingInt(BusStopCandidate::getTravelTimeSeconds))
             .orElse(null);
 
         return new RecommendationResult(
@@ -103,14 +103,14 @@ public final class BusRecommendationEngine {
             if (path == null) {
                 continue;
             }
-            int travelMinutes = path.getTotalMinutes();
+            int travelTimeSeconds = path.getTotalSeconds();
             summaryCandidates.add(new BusStopCandidate(
                 busStop.getId(),
                 busStop.getName(),
                 "",
                 null,
-                travelMinutes,
-                nowTime.plusMinutes(travelMinutes),
+                travelTimeSeconds,
+                nowTime.plusSeconds(travelTimeSeconds),
                 0,
                 false,
                 "",
@@ -129,13 +129,13 @@ public final class BusRecommendationEngine {
         BusTrip trip,
         BusStop busStop,
         LocalTime departureTime,
-        int travelMinutes,
+        int travelTimeSeconds,
         LocalTime nowTime,
         int safetyMarginMinutes,
         String selectedDestinationStopName,
         Pair<String, LocalTime> resolvedArrival
     ) {
-        LocalTime arrivalAtBusStop = nowTime.plusMinutes(travelMinutes);
+        LocalTime arrivalAtBusStop = nowTime.plusSeconds(travelTimeSeconds);
         LocalTime latestArrivalWithMargin = arrivalAtBusStop.plusMinutes(safetyMarginMinutes);
         boolean canCatch = !latestArrivalWithMargin.isAfter(departureTime);
         int remainingMinutes = (int) Duration.between(latestArrivalWithMargin, departureTime).toMinutes();
@@ -147,7 +147,7 @@ public final class BusRecommendationEngine {
             busStop.getName(),
             trip.getId(),
             departureTime,
-            travelMinutes,
+            travelTimeSeconds,
             arrivalAtBusStop,
             remainingMinutes,
             true,

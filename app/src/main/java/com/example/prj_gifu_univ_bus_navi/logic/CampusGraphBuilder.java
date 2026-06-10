@@ -26,7 +26,7 @@ public final class CampusGraphBuilder {
         List<CampusGraphEdge> overriddenEdges = new ArrayList<>();
         for (CampusGraphEdge edge : standardEdges) {
             UserEdgeOverride override = findOverride(edge.getId(), userEdgeOverrides);
-            int minutes = EdgeTravelTimeResolver.resolveMinutes(
+            int seconds = EdgeTravelTimeResolver.resolveSeconds(
                 edge,
                 userEdgeOverrides,
                 userTravelTimeProfile,
@@ -36,7 +36,7 @@ public final class CampusGraphBuilder {
                 edge.getId(),
                 edge.getFromNodeId(),
                 edge.getToNodeId(),
-                minutes,
+                seconds,
                 edge.isBidirectional(),
                 override == null ? edge.getSourceType() : EdgeSourceType.USER_OVERRIDE,
                 edge.isSelectableForUserEdit()
@@ -60,7 +60,7 @@ public final class CampusGraphBuilder {
                 "user_edge_" + index + "_" + sanitizeId(input.getName()),
                 nodeId,
                 input.getConnectedNodeId(),
-                input.getMinutesToConnectedNode(),
+                input.getTravelTimeSecondsToConnectedNode(),
                 true,
                 EdgeSourceType.USER_ADDED,
                 true

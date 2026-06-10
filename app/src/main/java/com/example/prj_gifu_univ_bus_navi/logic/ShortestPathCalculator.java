@@ -38,12 +38,12 @@ public final class ShortestPathCalculator {
         for (CampusGraphEdge edge : edges) {
             List<EdgeTarget> fromTargets = adjacency.get(edge.getFromNodeId());
             if (fromTargets != null) {
-                fromTargets.add(new EdgeTarget(edge.getToNodeId(), edge.getMinutes()));
+                fromTargets.add(new EdgeTarget(edge.getToNodeId(), edge.getTravelTimeSeconds()));
             }
             if (edge.isBidirectional()) {
                 List<EdgeTarget> toTargets = adjacency.get(edge.getToNodeId());
                 if (toTargets != null) {
-                    toTargets.add(new EdgeTarget(edge.getFromNodeId(), edge.getMinutes()));
+                    toTargets.add(new EdgeTarget(edge.getFromNodeId(), edge.getTravelTimeSeconds()));
                 }
             }
         }
@@ -72,7 +72,7 @@ public final class ShortestPathCalculator {
                 continue;
             }
             for (EdgeTarget target : targets) {
-                int newDistance = current.getDistance() + target.getMinutes();
+                int newDistance = current.getDistance() + target.getTravelTimeSeconds();
                 Integer existingDistance = distances.get(target.getNodeId());
                 if (existingDistance != null && newDistance < existingDistance) {
                     distances.put(target.getNodeId(), newDistance);
@@ -99,19 +99,19 @@ public final class ShortestPathCalculator {
 
     private static final class EdgeTarget {
         private final String nodeId;
-        private final int minutes;
+        private final int travelTimeSeconds;
 
-        private EdgeTarget(String nodeId, int minutes) {
+        private EdgeTarget(String nodeId, int travelTimeSeconds) {
             this.nodeId = nodeId;
-            this.minutes = minutes;
+            this.travelTimeSeconds = travelTimeSeconds;
         }
 
         private String getNodeId() {
             return nodeId;
         }
 
-        private int getMinutes() {
-            return minutes;
+        private int getTravelTimeSeconds() {
+            return travelTimeSeconds;
         }
     }
 

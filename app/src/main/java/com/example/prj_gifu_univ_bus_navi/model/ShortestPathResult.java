@@ -6,15 +6,15 @@ import java.util.List;
 import java.util.Objects;
 
 public final class ShortestPathResult {
-    private final int totalMinutes;
+    private final int totalSeconds;
     private final List<String> nodePath;
 
-    public ShortestPathResult(int totalMinutes, List<String> nodePath) {
-        this.totalMinutes = totalMinutes;
+    public ShortestPathResult(int totalSeconds, List<String> nodePath) {
+        this.totalSeconds = totalSeconds;
         this.nodePath = Collections.unmodifiableList(new ArrayList<>(nodePath));
     }
 
-    public int getTotalMinutes() { return totalMinutes; }
+    public int getTotalSeconds() { return totalSeconds; }
     public List<String> getNodePath() { return nodePath; }
 
     @Override
@@ -22,16 +22,16 @@ public final class ShortestPathResult {
         if (this == o) return true;
         if (!(o instanceof ShortestPathResult)) return false;
         ShortestPathResult that = (ShortestPathResult) o;
-        return totalMinutes == that.totalMinutes && Objects.equals(nodePath, that.nodePath);
+        return totalSeconds == that.totalSeconds && Objects.equals(nodePath, that.nodePath);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(totalMinutes, nodePath);
+        return Objects.hash(totalSeconds, nodePath);
     }
 
     @Override
     public String toString() {
-        return "ShortestPathResult{" + "totalMinutes=" + totalMinutes + ", nodePath=" + nodePath + '}';
+        return "ShortestPathResult{" + "totalSeconds=" + totalSeconds + ", nodePath=" + nodePath + '}';
     }
 }

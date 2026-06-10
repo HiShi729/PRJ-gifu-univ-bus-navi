@@ -6,28 +6,31 @@ import org.json.JSONObject;
 
 public final class UserEdgeOverride {
     private final String baseEdgeId;
-    private final int minutes;
+    private final int travelTimeSeconds;
 
-    public UserEdgeOverride(String baseEdgeId, int minutes) {
+    public UserEdgeOverride(String baseEdgeId, int travelTimeSeconds) {
         this.baseEdgeId = baseEdgeId;
-        this.minutes = minutes;
+        this.travelTimeSeconds = travelTimeSeconds;
     }
 
     public String getBaseEdgeId() { return baseEdgeId; }
-    public int getMinutes() { return minutes; }
+    public int getTravelTimeSeconds() { return travelTimeSeconds; }
 
     public JSONObject toJson() {
         JSONObject json = new JSONObject();
         try {
             json.put("baseEdgeId", baseEdgeId);
-            json.put("minutes", minutes);
+            json.put("travelTimeSeconds", travelTimeSeconds);
         } catch (JSONException ignored) {
         }
         return json;
     }
 
     public static UserEdgeOverride fromJson(JSONObject json) {
-        return new UserEdgeOverride(json.optString("baseEdgeId", ""), json.optInt("minutes", 1));
+        int seconds = json.has("travelTimeSeconds")
+            ? json.optInt("travelTimeSeconds", 60)
+            : json.optInt("minutes", 1) * 60;
+        return new UserEdgeOverride(json.optString("baseEdgeId", ""), seconds);
     }
 
     @Override
@@ -35,16 +38,16 @@ public final class UserEdgeOverride {
         if (this == o) return true;
         if (!(o instanceof UserEdgeOverride)) return false;
         UserEdgeOverride that = (UserEdgeOverride) o;
-        return minutes == that.minutes && Objects.equals(baseEdgeId, that.baseEdgeId);
+        return travelTimeSeconds == that.travelTimeSeconds && Objects.equals(baseEdgeId, that.baseEdgeId);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(baseEdgeId, minutes);
+        return Objects.hash(baseEdgeId, travelTimeSeconds);
     }
 
     @Override
     public String toString() {
-        return "UserEdgeOverride{" + "baseEdgeId='" + baseEdgeId + '\'' + ", minutes=" + minutes + '}';
+        return "UserEdgeOverride{" + "baseEdgeId='" + baseEdgeId + '\'' + ", travelTimeSeconds=" + travelTimeSeconds + '}';
     }
 }
