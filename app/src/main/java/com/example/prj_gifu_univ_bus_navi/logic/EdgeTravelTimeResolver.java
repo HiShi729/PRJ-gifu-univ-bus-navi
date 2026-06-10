@@ -12,7 +12,7 @@ public final class EdgeTravelTimeResolver {
     private EdgeTravelTimeResolver() {
     }
 
-    public static int resolveMinutes(
+    public static int resolveSeconds(
         CampusGraphEdge edge,
         List<UserEdgeOverride> userEdgeOverrides,
         UserTravelTimeProfile userTravelTimeProfile,
@@ -26,19 +26,19 @@ public final class EdgeTravelTimeResolver {
             }
         }
 
-        int baseMinutes;
+        int baseSeconds;
         if (override != null) {
-            baseMinutes = override.getMinutes();
+            baseSeconds = override.getTravelTimeSeconds();
         } else if (edge.getSourceType() == EdgeSourceType.STANDARD && userTravelTimeProfile != null) {
-            baseMinutes = (int) Math.ceil(edge.getMinutes() * userTravelTimeProfile.getTimeScaleFactor());
+            baseSeconds = (int) Math.ceil(edge.getTravelTimeSeconds() * userTravelTimeProfile.getTimeScaleFactor());
         } else {
-            baseMinutes = edge.getMinutes();
+            baseSeconds = edge.getTravelTimeSeconds();
         }
-        baseMinutes = Math.max(baseMinutes, 1);
+        baseSeconds = Math.max(baseSeconds, 1);
 
         if (rainModeEnabled) {
-            return Math.max((int) Math.ceil(baseMinutes * RAIN_SCALE_FACTOR), 1);
+            return Math.max((int) Math.ceil(baseSeconds * RAIN_SCALE_FACTOR), 1);
         }
-        return baseMinutes;
+        return baseSeconds;
     }
 }

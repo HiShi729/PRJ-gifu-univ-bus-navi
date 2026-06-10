@@ -214,13 +214,13 @@ public class MainViewModel {
         if (settingsRepository != null) settingsRepository.saveFavoriteStartNodeId(nodeId);
     }
 
-    public void saveTravelTimeProfile(String edgeId, int standardMinutes, int measuredMinutes) {
-        if (standardMinutes <= 0 || measuredMinutes <= 0) return;
+    public void saveTravelTimeProfile(String edgeId, int standardTravelTimeSeconds, int measuredTravelTimeSeconds) {
+        if (standardTravelTimeSeconds <= 0 || measuredTravelTimeSeconds <= 0) return;
         userTravelTimeProfile = new UserTravelTimeProfile(
             edgeId,
-            standardMinutes,
-            measuredMinutes,
-            (double) measuredMinutes / (double) standardMinutes
+            standardTravelTimeSeconds,
+            measuredTravelTimeSeconds,
+            (double) measuredTravelTimeSeconds / (double) standardTravelTimeSeconds
         );
         if (settingsRepository != null) settingsRepository.saveUserTravelTimeProfile(userTravelTimeProfile);
         currentScreen = AppScreen.SETTINGS;

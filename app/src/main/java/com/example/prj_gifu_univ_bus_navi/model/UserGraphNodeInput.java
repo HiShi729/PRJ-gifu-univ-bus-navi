@@ -7,20 +7,20 @@ import org.json.JSONObject;
 public final class UserGraphNodeInput {
     private final String name;
     private final String connectedNodeId;
-    private final int minutesToConnectedNode;
+    private final int travelTimeSecondsToConnectedNode;
     private final boolean selectableAsStart;
     private final Double latitude;
     private final Double longitude;
     private final UserNodeCoordinateSource coordinateSource;
 
-    public UserGraphNodeInput(String name, String connectedNodeId, int minutesToConnectedNode, boolean selectableAsStart) {
-        this(name, connectedNodeId, minutesToConnectedNode, selectableAsStart, null, null, UserNodeCoordinateSource.NONE);
+    public UserGraphNodeInput(String name, String connectedNodeId, int travelTimeSecondsToConnectedNode, boolean selectableAsStart) {
+        this(name, connectedNodeId, travelTimeSecondsToConnectedNode, selectableAsStart, null, null, UserNodeCoordinateSource.NONE);
     }
 
     public UserGraphNodeInput(
         String name,
         String connectedNodeId,
-        int minutesToConnectedNode,
+        int travelTimeSecondsToConnectedNode,
         boolean selectableAsStart,
         Double latitude,
         Double longitude,
@@ -28,7 +28,7 @@ public final class UserGraphNodeInput {
     ) {
         this.name = name;
         this.connectedNodeId = connectedNodeId;
-        this.minutesToConnectedNode = minutesToConnectedNode;
+        this.travelTimeSecondsToConnectedNode = travelTimeSecondsToConnectedNode;
         this.selectableAsStart = selectableAsStart;
         this.latitude = latitude;
         this.longitude = longitude;
@@ -37,7 +37,7 @@ public final class UserGraphNodeInput {
 
     public String getName() { return name; }
     public String getConnectedNodeId() { return connectedNodeId; }
-    public int getMinutesToConnectedNode() { return minutesToConnectedNode; }
+    public int getTravelTimeSecondsToConnectedNode() { return travelTimeSecondsToConnectedNode; }
     public boolean isSelectableAsStart() { return selectableAsStart; }
     public Double getLatitude() { return latitude; }
     public Double getLongitude() { return longitude; }
@@ -47,7 +47,7 @@ public final class UserGraphNodeInput {
         JSONObject json = new JSONObject();
         put(json, "name", name);
         put(json, "connectedNodeId", connectedNodeId);
-        put(json, "minutesToConnectedNode", minutesToConnectedNode);
+        put(json, "travelTimeSecondsToConnectedNode", travelTimeSecondsToConnectedNode);
         put(json, "isSelectableAsStart", selectableAsStart);
         if (latitude != null) put(json, "latitude", latitude);
         if (longitude != null) put(json, "longitude", longitude);
@@ -60,7 +60,7 @@ public final class UserGraphNodeInput {
         return new UserGraphNodeInput(
             json.optString("name", ""),
             json.optString("connectedNodeId", ""),
-            json.optInt("minutesToConnectedNode", 1),
+            json.has("travelTimeSecondsToConnectedNode") ? json.optInt("travelTimeSecondsToConnectedNode", 60) : json.optInt("minutesToConnectedNode", 1) * 60,
             json.optBoolean("isSelectableAsStart", true),
             json.has("latitude") && !json.isNull("latitude") ? json.optDouble("latitude") : null,
             json.has("longitude") && !json.isNull("longitude") ? json.optDouble("longitude") : null,
@@ -88,7 +88,7 @@ public final class UserGraphNodeInput {
         if (this == o) return true;
         if (!(o instanceof UserGraphNodeInput)) return false;
         UserGraphNodeInput that = (UserGraphNodeInput) o;
-        return minutesToConnectedNode == that.minutesToConnectedNode &&
+        return travelTimeSecondsToConnectedNode == that.travelTimeSecondsToConnectedNode &&
             selectableAsStart == that.selectableAsStart &&
             Objects.equals(name, that.name) &&
             Objects.equals(connectedNodeId, that.connectedNodeId) &&
@@ -99,7 +99,7 @@ public final class UserGraphNodeInput {
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, connectedNodeId, minutesToConnectedNode, selectableAsStart, latitude, longitude, coordinateSource);
+        return Objects.hash(name, connectedNodeId, travelTimeSecondsToConnectedNode, selectableAsStart, latitude, longitude, coordinateSource);
     }
 
     @Override
@@ -107,7 +107,7 @@ public final class UserGraphNodeInput {
         return "UserGraphNodeInput{" +
             "name='" + name + '\'' +
             ", connectedNodeId='" + connectedNodeId + '\'' +
-            ", minutesToConnectedNode=" + minutesToConnectedNode +
+            ", travelTimeSecondsToConnectedNode=" + travelTimeSecondsToConnectedNode +
             ", selectableAsStart=" + selectableAsStart +
             ", latitude=" + latitude +
             ", longitude=" + longitude +
