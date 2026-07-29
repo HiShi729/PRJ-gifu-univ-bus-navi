@@ -746,7 +746,7 @@ public class MainActivity extends AppCompatActivity {
         content.addView(screenTitle("移動時間補正"));
         List<CampusGraphEdge> edges = viewModel.getEditableEdges();
         content.addView(fieldLabel("基準エッジ"));
-        Spinner edgeSpinner = spinner(edgeLabels(edges));
+        Spinner edgeSpinner = spinner(edgeLabels(edges, viewModel.getGraphNodes()));
         content.addView(edgeSpinner);
         TextView standard = messageLabel("");
         content.addView(standard);
@@ -1125,9 +1125,17 @@ public class MainActivity extends AppCompatActivity {
         return labels;
     }
 
-    private static List<String> edgeLabels(List<CampusGraphEdge> edges) {
+    private static List<String> edgeLabels(List<CampusGraphEdge> edges, List<CampusGraphNode> nodes) {
+        Map<String, String> nodeNamesById = new HashMap<>();
+        for (CampusGraphNode node : nodes) {
+            nodeNamesById.put(node.getId(), node.getName());
+        }
         List<String> labels = new ArrayList<>();
-        for (CampusGraphEdge edge : edges) labels.add(edge.getId() + " (" + formatTravelTimeSeconds(edge.getTravelTimeSeconds()) + ")");
+        for (CampusGraphEdge edge : edges) {
+            labels.add(nodeNamesById.get(edge.getFromNodeId()) + " → "
+                + nodeNamesById.get(edge.getToNodeId())
+                + " (" + formatTravelTimeSeconds(edge.getTravelTimeSeconds()) + ")");
+        }
         return labels;
     }
 
