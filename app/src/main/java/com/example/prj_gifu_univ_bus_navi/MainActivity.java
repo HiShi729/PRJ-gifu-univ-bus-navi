@@ -601,7 +601,7 @@ public class MainActivity extends AppCompatActivity {
         content.addView(fieldLabel("ノード名"));
         EditText name = editText("ノード名", InputType.TYPE_CLASS_TEXT);
         content.addView(name);
-        List<CampusGraphNode> connectable = viewModel.getGraphNodes();
+        List<CampusGraphNode> connectable = viewModel.getSelectableStartNodes();
         content.addView(fieldLabel("接続先ノード"));
         Spinner connected = spinner(withUnset(nodeNames(connectable)));
         content.addView(connected);
