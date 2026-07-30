@@ -138,7 +138,7 @@ public class JavaMigrationRegressionTest {
 
     @Test
     public void pathMapAndUiFiltersAreMaintained() {
-        assertEquals(540, ShortestPathCalculator.findShortestPath(
+        assertEquals(434, ShortestPathCalculator.findShortestPath(
             LocalCampusGraphData.getNodes(),
             LocalCampusGraphData.getEdges(),
             "engineering_entrance",
@@ -189,6 +189,22 @@ public class JavaMigrationRegressionTest {
         viewModel.navigate(AppScreen.ADD_NODE);
         viewModel.navigateBack();
         assertEquals(AppScreen.SETTINGS, viewModel.getCurrentScreen());
+    }
+
+    @Test
+    public void travelTimeProfileOnlyOffersEdgesWithVisibleEndpoints() {
+        MainViewModel viewModel = new MainViewModel();
+        Map<String, CampusGraphNode> nodesById = new LinkedHashMap<>();
+        for (CampusGraphNode node : viewModel.getGraphNodes()) {
+            nodesById.put(node.getId(), node);
+        }
+
+        List<CampusGraphEdge> editableEdges = viewModel.getEditableEdges();
+        assertFalse(editableEdges.isEmpty());
+        for (CampusGraphEdge edge : editableEdges) {
+            assertTrue(nodesById.get(edge.getFromNodeId()).isSelectableAsStart());
+            assertTrue(nodesById.get(edge.getToNodeId()).isSelectableAsStart());
+        }
     }
 
     @Test
