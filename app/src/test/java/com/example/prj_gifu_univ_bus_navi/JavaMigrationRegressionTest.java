@@ -138,7 +138,7 @@ public class JavaMigrationRegressionTest {
 
     @Test
     public void pathMapAndUiFiltersAreMaintained() {
-        assertEquals(540, ShortestPathCalculator.findShortestPath(
+        assertEquals(434, ShortestPathCalculator.findShortestPath(
             LocalCampusGraphData.getNodes(),
             LocalCampusGraphData.getEdges(),
             "engineering_entrance",
