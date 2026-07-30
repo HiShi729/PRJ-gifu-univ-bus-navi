@@ -20,7 +20,9 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import kotlin.Pair;
 
 public class MainViewModel {
@@ -127,8 +129,16 @@ public class MainViewModel {
 
     public List<CampusGraphEdge> getEditableEdges() {
         List<CampusGraphEdge> result = new ArrayList<>();
+        Map<String, CampusGraphNode> nodesById = new HashMap<>();
+        for (CampusGraphNode node : getGraphNodes()) {
+            nodesById.put(node.getId(), node);
+        }
         for (CampusGraphEdge edge : LocalCampusGraphData.getEdges()) {
-            if (edge.isSelectableForUserEdit()) {
+            CampusGraphNode fromNode = nodesById.get(edge.getFromNodeId());
+            CampusGraphNode toNode = nodesById.get(edge.getToNodeId());
+            if (edge.isSelectableForUserEdit()
+                && fromNode != null && fromNode.isSelectableAsStart()
+                && toNode != null && toNode.isSelectableAsStart()) {
                 result.add(edge);
             }
         }

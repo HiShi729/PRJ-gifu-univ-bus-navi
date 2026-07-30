@@ -192,6 +192,22 @@ public class JavaMigrationRegressionTest {
     }
 
     @Test
+    public void travelTimeProfileOnlyOffersEdgesWithVisibleEndpoints() {
+        MainViewModel viewModel = new MainViewModel();
+        Map<String, CampusGraphNode> nodesById = new LinkedHashMap<>();
+        for (CampusGraphNode node : viewModel.getGraphNodes()) {
+            nodesById.put(node.getId(), node);
+        }
+
+        List<CampusGraphEdge> editableEdges = viewModel.getEditableEdges();
+        assertFalse(editableEdges.isEmpty());
+        for (CampusGraphEdge edge : editableEdges) {
+            assertTrue(nodesById.get(edge.getFromNodeId()).isSelectableAsStart());
+            assertTrue(nodesById.get(edge.getToNodeId()).isSelectableAsStart());
+        }
+    }
+
+    @Test
     public void recommendationUsesSecondPrecisionForCatchDecision() {
         Map<String, LocalTime> stopTimes = new LinkedHashMap<>();
         stopTimes.put("JR岐阜", LocalTime.of(18, 35));
